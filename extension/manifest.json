@@ -1,10 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Multi Screen Helper",
-  "version": "1.0.0",
-  "description": "Multi Screen page ki screens me asli YouTube aur baaki websites kholne deta hai. Sirf Multi Screen wale tab ke andar kaam karta hai.",
+  "version": "1.1.0",
+  "description": "Multi Screen page ki screens me asli YouTube aur baaki websites kholne deta hai. Sirf Multi Screen ke andar kaam karta hai.",
   "permissions": ["declarativeNetRequestWithHostAccess"],
   "host_permissions": ["<all_urls>"],
+  "declarative_net_request": {
+    "rule_resources": [{ "id": "frames", "enabled": true, "path": "rules.json" }]
+  },
   "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
