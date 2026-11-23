@@ -51,6 +51,13 @@
   .ychip.on { background: var(--yt); border-color: var(--yt); color: #fff; }
   .tip { position: absolute; left: 8px; right: 8px; bottom: 8px; background: rgba(20,22,28,.92); color: #ffd99a; font-size: 12.5px; padding: 7px 10px; border-radius: 8px; display: none; }
   .tip.show { display: block; }
+  .strip { position: absolute; left: 0; right: 0; bottom: 0; display: none; align-items: center; gap: 6px; flex-wrap: wrap;
+           padding: 8px; background: rgba(15,17,21,.96); border-top: 2px solid var(--yt); color: var(--text); font-size: 13px; }
+  .strip.show { display: flex; }
+  .strip span { flex: 1; min-width: 150px; color: #ffd99a; }
+  .sb { background: #1b1f27; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; font-weight: 700; cursor: pointer; }
+  .sb.ytgo { background: var(--yt); border-color: var(--yt); color: #fff; }
+  .sb.back2 { background: var(--g); border-color: var(--g); color: #fff; }
   @media (max-width: 760px) {
     .grid { grid-template-columns: 1fr !important; grid-template-rows: none !important; overflow: auto; }
     .pane { height: 75vh; }
@@ -76,6 +83,10 @@
   };
   let count = store.get('count', 6);
   const urls = store.get('urls', Array(N).fill(HOME));
+  const qs = store.get('qs', Array(N).fill(''));
+  // sirf wahi cheezein wapas kholo jo screen ke andar khul sakti hain (youtube.com jaisi refuse wali nahi)
+  const canFrame = u => /^https:\/\/www\.google\.com\/(search|webhp)\?igu=1/.test(u || '') || /^https:\/\/www\.youtube\.com\/embed\//.test(u || '');
+  const VIDEO_WORDS = /\b(song|songs|gaana|gana|gaane|gane|video|videos|movie|film|trailer|music|lofi|episode|cartoon|highlights|bhajan|status|remix|mashup|jukebox|podcast|stand ?up|comedy)\b/i;
   const grid = document.getElementById('grid');
   const LAYOUT = { 1: [1, 1], 2: [2, 1], 3: [3, 1], 4: [2, 2], 6: [3, 2] };
 
@@ -145,6 +156,8 @@
         <iframe allow="autoplay; encrypted-media; fullscreen; picture-in-picture; clipboard-write" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
         <div class="list"></div>
         <div class="tip"></div>
+        <div class="strip"><span>Page nahi khula? (YouTube jaisi sites yahan nahi khulti)</span>
+          <button class="sb back2">↩ Wapas</button><button class="sb ytgo">▶ YouTube pe dhoondo</button><button class="sb x" title="Band karo">✕</button></div>
       </div>`;
     grid.appendChild(p);
     const el = {
@@ -155,16 +168,30 @@
 
     const tip = (t, ms = 5000) => { el.tip.textContent = t; el.tip.classList.add('show'); clearTimeout(el.tt); el.tt = setTimeout(() => el.tip.classList.remove('show'), ms); };
     const yt = (func) => { try { el.frame.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*'); } catch (e) {} };
+    el.strip = p.querySelector('.strip');
+    el.expect = 0;
     const load = (url, save = true) => {
       el.list.classList.remove('show');
+      el.strip.classList.remove('show');
+      el.expect++;
       el.frame.src = url;
+      el.lastUrl = url;
       const vid = /youtube\.com\/embed/.test(url);
       el.mute.hidden = !vid;
       el.back.hidden = !(vid && el.hasList);
       el.muted = false; el.mute.textContent = '🔇';
-      if (save) { urls[i] = url; store.set('urls', urls); }
+      if (save) { urls[i] = url; qs[i] = el.input.value.trim(); store.set('urls', urls); store.set('qs', qs); }
     };
     el.load = load;
+    // Screen ke andar kisi link pe click hua (humne nahi badla) → neeche "Wapas / YouTube" ki patti dikhao
+    el.frame.addEventListener('load', () => {
+      if (el.expect > 0) { el.expect--; return; }
+      if (/youtube\.com\/embed/.test(el.lastUrl || '')) return;
+      el.strip.classList.add('show');
+    });
+    p.querySelector('.back2').onclick = () => load(el.lastUrl || HOME, false);
+    p.querySelector('.x').onclick = () => el.strip.classList.remove('show');
+    p.querySelector('.ytgo').onclick = () => { el.strip.classList.remove('show'); goYouTube(); };
 
     // ---- is screen ke andar chhota YouTube: chips + video cards
     const showList = (title, items, chip) => {
@@ -217,10 +244,12 @@
       const emb = ytEmbed(q);
       if (emb) return load(emb);
       if (isYouTubeWord(q)) return ytHome();                       // "youtube" likha → isi screen me YouTube
-      if (/\byou ?tube\b/i.test(q)) {                              // "kesariya youtube" → YouTube search
-        const rest = q.replace(/\b(on|pe|par|me)?\s*you ?tube\b/ig, ' ').replace(/\s+/g, ' ').trim();
+      if (/\byou ?tube\b|youtu\.be/i.test(q)) {                    // "kesariya youtube" / youtube.com/... → YouTube search
+        const rest = q.replace(/(https?:\/\/)?((www|m)\.)?youtube\.com\/?\S*/ig, ' ')
+          .replace(/\b(on|pe|par|me)?\s*you ?tube\b/ig, ' ').replace(/\s+/g, ' ').trim();
         return rest ? ytFind(rest) : ytHome();
       }
+      if (VIDEO_WORDS.test(q) && !isUrl(q)) return ytFind(q);      // "kesariya song" → seedha YouTube (Google ke YT links yahan nahi khulte)
       if (isUrl(q)) {
         load(/^https?:/i.test(q) ? q : 'https://' + q);
         tip('Kuch websites (jaise instagram) page ke andar khulne nahi deti. Khali dikhe toh G se search karo. Video ke liye ▶.', 7000);
@@ -255,7 +284,8 @@
       el.mute.textContent = el.muted ? '🔊' : '🔇';
     };
     p.addEventListener('pointerdown', () => { panes.forEach(x => x.p.classList.remove('focus')); p.classList.add('focus'); });
-    load(urls[i] || HOME, false);
+    el.input.value = canFrame(urls[i]) ? (qs[i] || '') : '';
+    load(canFrame(urls[i]) ? urls[i] : HOME, false);
   }
 
   function layout() {
