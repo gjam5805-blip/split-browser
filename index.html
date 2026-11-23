@@ -45,6 +45,13 @@
   .card img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: #000; }
   .card span { display: block; padding: 6px 8px 2px; line-height: 1.25; }
   .card small { display: block; padding: 0 8px 7px; color: var(--muted); font-size: 11.5px; }
+  .ysearch { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .ylogo { color: #fff; font-weight: 800; white-space: nowrap; font-size: 15px; }
+  .ylogo::first-letter { color: var(--yt); }
+  .ysearch input { flex: 1; min-width: 0; padding: 10px 16px; border-radius: 999px; border: 1px solid #3a3f4b; background: #0c0e12; color: var(--text); font: inherit; font-size: 15px; }
+  .ysearch input:focus { outline: 2px solid var(--yt); border-color: transparent; }
+  .ysearch button { height: 40px; width: 56px; border-radius: 999px; border: 1px solid #3a3f4b; background: #22262f; color: var(--text); font-size: 16px; cursor: pointer; }
+  .ysearch button:hover { background: #2c313c; }
   .ychips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
   .ychip { background: #1b1f27; border: 1px solid var(--line); color: var(--text); border-radius: 999px; padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
   .ychip:hover { border-color: var(--muted); }
@@ -194,8 +201,15 @@
     p.querySelector('.ytgo').onclick = () => { el.strip.classList.remove('show'); goYouTube(); };
 
     // ---- is screen ke andar chhota YouTube: chips + video cards
-    const showList = (title, items, chip) => {
+    const showList = (title, items, chip, query) => {
       el.list.innerHTML = '';
+      // YouTube jaisa apna search bar
+      const sbar = document.createElement('form');
+      sbar.className = 'ysearch';
+      sbar.innerHTML = '<span class="ylogo">▶ YouTube</span><input type="search" placeholder="YouTube pe search karo…" enterkeyhint="search"><button type="submit" title="Search">🔍</button>';
+      const sin = sbar.querySelector('input');
+      sin.value = query || '';
+      sbar.onsubmit = e => { e.preventDefault(); const v = sin.value.trim(); if (v) { el.input.value = v; ytFind(v); } else ytHome(); };
       const chips = document.createElement('div');
       chips.className = 'ychips';
       CHIPS.forEach(([label, q]) => {
@@ -220,22 +234,24 @@
         b.onclick = () => load(`https://www.youtube.com/embed/${v.id}?autoplay=1&rel=0&enablejsapi=1`);
         cards.appendChild(b);
       });
-      el.list.append(chips, hd, cards);
+      el.list.append(sbar, chips, hd, cards);
       el.list.classList.add('show');
       el.list.scrollTop = 0;
       if (items.length) el.hasList = true;
+      if (!query && !items.length) sin.focus();
     };
     const ytFind = async (q, chip) => {
-      showList('🔎 YouTube pe dhoondh raha hoon: ' + q, [], chip);
+      const shown = chip ? '' : q;   // category chip ho toh search bar khali rakho
+      showList('🔎 YouTube pe dhoondh raha hoon: ' + q, [], chip, shown);
       const res = await ytSearch(q);
-      if (!res.length) return showList('😕 YouTube search abhi nahi chala. Thodi der baad dobara ▶ dabao, ya kisi video ka link paste karo.', [], chip);
-      showList(`"${q}" — jo chalana hai us pe tap karo:`, res, chip);
+      if (!res.length) return showList('😕 YouTube search abhi nahi chala. Thodi der baad dobara try karo, ya kisi video ka link paste karo.', [], chip, shown);
+      showList(`"${q}" — jo chalana hai us pe tap karo:`, res, chip, shown);
     };
     const ytHome = async () => {
       showList('🔥 Trending videos la raha hoon…', [], '🔥 Trending');
       const res = await ytTrending();
-      if (!res.length) return showList('😕 Trending abhi nahi aaya. Upar koi category chuno ya likh ke ▶ dabao.', [], '🔥 Trending');
-      showList('🔥 India me trending — tap karo, ya upar category chuno:', res, '🔥 Trending');
+      if (!res.length) return showList('😕 Trending abhi nahi aaya. Upar search karo ya koi category chuno.', [], '🔥 Trending');
+      showList('🔥 India me trending — upar search karo, category chuno, ya video pe tap karo:', res, '🔥 Trending');
     };
 
     const goGoogle = () => {
