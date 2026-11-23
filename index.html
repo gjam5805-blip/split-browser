@@ -43,7 +43,12 @@
   .card { background: #1b1f27; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; cursor: pointer; text-align: left; color: var(--text); padding: 0; font: inherit; font-size: 12.5px; }
   .card:hover { border-color: var(--yt); }
   .card img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: #000; }
-  .card span { display: block; padding: 6px 8px; line-height: 1.25; }
+  .card span { display: block; padding: 6px 8px 2px; line-height: 1.25; }
+  .card small { display: block; padding: 0 8px 7px; color: var(--muted); font-size: 11.5px; }
+  .ychips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .ychip { background: #1b1f27; border: 1px solid var(--line); color: var(--text); border-radius: 999px; padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .ychip:hover { border-color: var(--muted); }
+  .ychip.on { background: var(--yt); border-color: var(--yt); color: #fff; }
   .tip { position: absolute; left: 8px; right: 8px; bottom: 8px; background: rgba(20,22,28,.92); color: #ffd99a; font-size: 12.5px; padding: 7px 10px; border-radius: 8px; display: none; }
   .tip.show { display: block; }
   @media (max-width: 760px) {
@@ -57,7 +62,7 @@
     <b>Multi Screen</b>
     <div class="seg" id="count"></div>
     <button class="tbtn" id="reset" title="Sab screens wapas Google pe">↺ Sab reset</button>
-    <span style="color:var(--muted);font-size:13px">Har screen me: likho → Enter = Google · ▶ = YouTube video · ⤢ = badi screen</span>
+    <span style="color:var(--muted);font-size:13px">Har screen me: likho → Enter = Google · ▶ = YouTube (isi screen me) · ⤢ = badi screen</span>
   </div>
   <div class="grid" id="grid"></div>
 
@@ -80,20 +85,36 @@
     try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) throw new Error(r.status); return await r.json(); }
     finally { clearTimeout(t); }
   }
-  const piped = h => async q => (await j(`https://${h}/search?q=${encodeURIComponent(q)}&filter=videos`)).items
-    .filter(x => x.url && x.url.includes('v=')).map(x => ({ id: x.url.split('v=')[1].slice(0, 11), title: x.title }));
-  const invid = h => async q => (await j(`https://${h}/api/v1/search?type=video&q=${encodeURIComponent(q)}`))
-    .filter(x => x.videoId).map(x => ({ id: x.videoId, title: x.title }));
-  const SEARCHERS = [piped('api.piped.private.coffee'), piped('pipedapi.kavin.rocks'), piped('pipedapi.adminforge.de'),
-                     piped('api.piped.yt'), invid('inv.nadeko.net'), invid('yewtu.be')];
+  const fromPiped = arr => arr.filter(x => x.url && x.url.includes('v=') && !x.isShort)
+    .map(x => ({ id: x.url.split('v=')[1].slice(0, 11), title: x.title, ch: x.uploaderName, dur: x.duration }));
+  const fromInvid = arr => arr.filter(x => x.videoId)
+    .map(x => ({ id: x.videoId, title: x.title, ch: x.author, dur: x.lengthSeconds }));
+  const piped = h => ({
+    search: async q => fromPiped((await j(`https://${h}/search?q=${encodeURIComponent(q)}&filter=videos`)).items),
+    trending: async () => fromPiped(await j(`https://${h}/trending?region=IN`)),
+  });
+  const invid = h => ({
+    search: async q => fromInvid(await j(`https://${h}/api/v1/search?type=video&region=IN&q=${encodeURIComponent(q)}`)),
+    trending: async () => fromInvid(await j(`https://${h}/api/v1/trending?region=IN`)),
+  });
+  const SOURCES = [piped('api.piped.private.coffee'), piped('pipedapi.kavin.rocks'), piped('pipedapi.adminforge.de'),
+                   piped('api.piped.yt'), invid('inv.nadeko.net'), invid('yewtu.be')];
   let lastGood = 0;
-  async function ytSearch(q) {
-    for (let i = 0; i < SEARCHERS.length; i++) {
-      const k = (lastGood + i) % SEARCHERS.length;
-      try { const r = await SEARCHERS[k](q); if (r && r.length) { lastGood = k; return r.slice(0, 12); } } catch (e) {}
+  async function ask(kind, q) {
+    for (let i = 0; i < SOURCES.length; i++) {
+      const k = (lastGood + i) % SOURCES.length;
+      try { const r = await SOURCES[k][kind](q); if (r && r.length) { lastGood = k; return r.slice(0, 24); } } catch (e) {}
     }
     return [];
   }
+  const ytSearch = q => ask('search', q);
+  const ytTrending = async () => { const r = await ask('trending'); return r.length ? r : ask('search', 'trending india today'); };
+  const CHIPS = [['🔥 Trending', ''], ['🎵 Hindi songs', 'latest hindi songs'], ['🎬 Movie trailers', 'new movie trailer hindi'],
+                 ['📰 News', 'hindi news live'], ['😂 Comedy', 'comedy hindi'], ['🧸 Cartoon', 'cartoon hindi'],
+                 ['🎧 Lofi', 'lofi hindi songs'], ['🏏 Cricket', 'cricket highlights']];
+  const fmt = s => { s = +s || 0; if (!s) return ''; const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+  const isYouTubeWord = q => /^(https?:\/\/)?((www|m)\.)?(you ?tube|yt)(\.com)?\/?$/i.test(q.trim());
 
   function ytEmbed(s) {
     const v = s.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([\w-]{11})/);
@@ -112,9 +133,10 @@
     p.innerHTML = `
       <div class="bar">
         <span class="num">${i + 1}</span>
-        <input type="text" placeholder="Google pe search ya link…" enterkeyhint="search">
+        <input type="text" placeholder="Search, link, ya youtube…" enterkeyhint="search">
         <button class="ib g" title="Google search">G</button>
-        <button class="ib yt" title="YouTube video dhoondho aur chalao">▶</button>
+        <button class="ib yt" title="YouTube: khali dabao toh trending, likh ke dabao toh search">▶</button>
+        <button class="ib back" title="Wapas video list" hidden>☰</button>
         <button class="ib mute" title="Video mute / unmute" hidden>🔇</button>
         <button class="ib max" title="Is screen ko bada karo">⤢</button>
         <button class="ib home" title="Wapas Google">⌂</button>
@@ -127,58 +149,94 @@
     grid.appendChild(p);
     const el = {
       p, input: p.querySelector('input'), frame: p.querySelector('iframe'), list: p.querySelector('.list'), tip: p.querySelector('.tip'),
-      mute: p.querySelector('.mute'), muted: false,
+      mute: p.querySelector('.mute'), back: p.querySelector('.back'), muted: false, hasList: false, googleTip: false,
     };
     panes.push(el);
 
     const tip = (t, ms = 5000) => { el.tip.textContent = t; el.tip.classList.add('show'); clearTimeout(el.tt); el.tt = setTimeout(() => el.tip.classList.remove('show'), ms); };
+    const yt = (func) => { try { el.frame.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*'); } catch (e) {} };
     const load = (url, save = true) => {
       el.list.classList.remove('show');
       el.frame.src = url;
-      el.mute.hidden = !/youtube\.com\/embed/.test(url);
+      const vid = /youtube\.com\/embed/.test(url);
+      el.mute.hidden = !vid;
+      el.back.hidden = !(vid && el.hasList);
       el.muted = false; el.mute.textContent = '🔇';
       if (save) { urls[i] = url; store.set('urls', urls); }
     };
     el.load = load;
+
+    // ---- is screen ke andar chhota YouTube: chips + video cards
+    const showList = (title, items, chip) => {
+      el.list.innerHTML = '';
+      const chips = document.createElement('div');
+      chips.className = 'ychips';
+      CHIPS.forEach(([label, q]) => {
+        const b = document.createElement('button');
+        b.className = 'ychip' + (label === chip ? ' on' : '');
+        b.textContent = label;
+        b.onclick = () => (q ? ytFind(q, label) : ytHome());
+        chips.appendChild(b);
+      });
+      const hd = document.createElement('div');
+      hd.className = 'hd'; hd.textContent = title;
+      const cards = document.createElement('div');
+      cards.className = 'cards';
+      items.forEach(v => {
+        const b = document.createElement('button');
+        b.className = 'card';
+        const img = document.createElement('img');
+        img.src = `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`; img.alt = ''; img.loading = 'lazy';
+        const s = document.createElement('span'); s.textContent = v.title;
+        const m = document.createElement('small'); m.textContent = [v.ch, fmt(v.dur)].filter(Boolean).join(' · ');
+        b.append(img, s, m);
+        b.onclick = () => load(`https://www.youtube.com/embed/${v.id}?autoplay=1&rel=0&enablejsapi=1`);
+        cards.appendChild(b);
+      });
+      el.list.append(chips, hd, cards);
+      el.list.classList.add('show');
+      el.list.scrollTop = 0;
+      if (items.length) el.hasList = true;
+    };
+    const ytFind = async (q, chip) => {
+      showList('🔎 YouTube pe dhoondh raha hoon: ' + q, [], chip);
+      const res = await ytSearch(q);
+      if (!res.length) return showList('😕 YouTube search abhi nahi chala. Thodi der baad dobara ▶ dabao, ya kisi video ka link paste karo.', [], chip);
+      showList(`"${q}" — jo chalana hai us pe tap karo:`, res, chip);
+    };
+    const ytHome = async () => {
+      showList('🔥 Trending videos la raha hoon…', [], '🔥 Trending');
+      const res = await ytTrending();
+      if (!res.length) return showList('😕 Trending abhi nahi aaya. Upar koi category chuno ya likh ke ▶ dabao.', [], '🔥 Trending');
+      showList('🔥 India me trending — tap karo, ya upar category chuno:', res, '🔥 Trending');
+    };
 
     const goGoogle = () => {
       const q = el.input.value.trim();
       if (!q) return load(HOME);
       const emb = ytEmbed(q);
       if (emb) return load(emb);
+      if (isYouTubeWord(q)) return ytHome();                       // "youtube" likha → isi screen me YouTube
+      if (/\byou ?tube\b/i.test(q)) {                              // "kesariya youtube" → YouTube search
+        const rest = q.replace(/\b(on|pe|par|me)?\s*you ?tube\b/ig, ' ').replace(/\s+/g, ' ').trim();
+        return rest ? ytFind(rest) : ytHome();
+      }
       if (isUrl(q)) {
         load(/^https?:/i.test(q) ? q : 'https://' + q);
-        tip('Kuch websites (jaise youtube.com, instagram) page ke andar khulne nahi deti. Khali dikhe toh G se search karo ya ▶ se video chalao.', 7000);
+        tip('Kuch websites (jaise instagram) page ke andar khulne nahi deti. Khali dikhe toh G se search karo. Video ke liye ▶.', 7000);
         return;
       }
       load(googleUrl(q));
+      if (!el.googleTip) { el.googleTip = true; tip('Google ke YouTube links yahan nahi khulte. Video dekhna ho toh ▶ dabao, YouTube isi screen me chalega.', 6000); }
     };
-    const goYouTube = async () => {
+    const goYouTube = () => {
       const q = el.input.value.trim();
-      if (!q) { el.input.focus(); return tip('Pehle likho kya chalana hai, phir ▶ dabao.'); }
+      if (!q || isYouTubeWord(q)) return ytHome();
       const emb = ytEmbed(q);
       if (emb) return load(emb);
-      el.list.innerHTML = '<div class="hd">🔎 YouTube pe dhoondh raha hoon…</div>';
-      el.list.classList.add('show');
-      const res = await ytSearch(q);
-      if (!res.length) {
-        el.list.classList.remove('show');
-        load(googleUrl(q + ' youtube'));
-        return tip('YouTube search abhi nahi chala, Google pe dikha raha hoon. Kisi video ka link copy karke yahan paste karo, chal jayega.', 8000);
-      }
-      el.list.innerHTML = '<div class="hd">Jo chalana hai us pe tap karo:</div><div class="cards"></div>';
-      const cards = el.list.querySelector('.cards');
-      res.forEach(v => {
-        const b = document.createElement('button');
-        b.className = 'card';
-        const img = document.createElement('img');
-        img.src = `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`; img.alt = ''; img.loading = 'lazy';
-        const s = document.createElement('span'); s.textContent = v.title;
-        b.append(img, s);
-        b.onclick = () => load(`https://www.youtube.com/embed/${v.id}?autoplay=1&rel=0&enablejsapi=1`);
-        cards.appendChild(b);
-      });
+      ytFind(q.replace(/\b(on|pe|par|me)?\s*you ?tube\b/ig, ' ').trim() || q);
     };
+    el.back.onclick = () => { yt('pauseVideo'); el.list.classList.add('show'); el.back.hidden = true; };
     el.input.addEventListener('keydown', e => { if (e.key === 'Enter') goGoogle(); });
     p.querySelector('.g').onclick = goGoogle;
     p.querySelector('.yt').onclick = goYouTube;
@@ -193,7 +251,7 @@
     };
     el.mute.onclick = () => {
       el.muted = !el.muted;
-      el.frame.contentWindow.postMessage(JSON.stringify({ event: 'command', func: el.muted ? 'mute' : 'unMute', args: [] }), '*');
+      yt(el.muted ? 'mute' : 'unMute');
       el.mute.textContent = el.muted ? '🔊' : '🔇';
     };
     p.addEventListener('pointerdown', () => { panes.forEach(x => x.p.classList.remove('focus')); p.classList.add('focus'); });
