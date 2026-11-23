@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi Screen App</title>
+<meta name="description" content="Ek click me kai asli Chrome windows screen pe grid me. Windows aur Mac.">
+<style>
+  :root { --bg: #0f1115; --panel: #171a21; --line: #2a2f3a; --text: #eef1f6; --muted: #9aa3b2; --g: #4dabff; --yt: #ff4d6d; --ok: #3ddc97; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 780px; margin: 0 auto; padding: 28px 16px 60px; }
+  h1 { font-size: 28px; margin: 0 0 6px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .btn { display: inline-block; background: var(--ok); color: #06210f; font-weight: 800; padding: 14px 22px; border-radius: 12px; text-decoration: none; font-size: 17px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin: 14px 0; }
+  .card h2 { margin: 0 0 8px; font-size: 18px; }
+  ol { margin: 0; padding-left: 22px; } li { margin: 6px 0; }
+  code { background: #0c0e12; border: 1px solid var(--line); padding: 2px 7px; border-radius: 6px; font-size: 14px; }
+  .feat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
+  .feat div { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-size: 14px; color: var(--muted); }
+  .feat b { display: block; color: var(--text); margin-bottom: 3px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  @media (max-width: 640px) { .feat { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>🖥 Multi Screen app</h1>
+  <p class="sub">Ek click me 2 se 12 tak <b>asli Chrome windows</b>, screen pe grid me apne aap set. Har window me YouTube (recommendations, login, video), Netflix, sab kuch.</p>
+  <a class="btn" href="multiscreen-app.zip" download>⬇ Multi Screen download (Windows + Mac)</a>
+  <div class="feat">
+    <div><b>Poora Chrome</b>Tabs aur address bar wali normal windows.</div>
+    <div><b>Patli windows</b>10–12 screens ke liye, address bar ke bina.</div>
+    <div><b>Tumhara profile</b>Jis Chrome profile me login ho, wahi chuno.</div>
+  </div>
+  <div class="card">
+    <h2>Windows laptop pe (~2 min)</h2>
+    <ol>
+      <li>Upar wala zip download karo, right-click → <b>Extract All</b>.</li>
+      <li>Folder me <code>Install Multi Screen (Windows).bat</code> pe double-click. Python na ho toh khud install karega.</li>
+      <li>Desktop pe <b>Multi Screen</b> icon aa jayega. Kholo → number dabao.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h2>Mac pe (~3 min)</h2>
+    <ol>
+      <li>Zip download karo, double-click se khul jayega.</li>
+      <li><code>Install Multi Screen (Mac).command</code> pe right-click → <b>Open</b> → Open (pehli baar Mac poochta hai).</li>
+      <li>Mac poochega "control Google Chrome?" → <b>OK</b>. Desktop pe <b>Multi Screen</b> aa jayega.</li>
+    </ol>
+  </div>
+  <p class="muted">Tips: "Phir se set karo" se bikhri windows wapas grid me. "Sab band karo" se sirf Multi Screen wali windows band hoti hain, tumhari baaki Chrome nahi. Do screen (projector extend) ho toh app me "Kis screen pe" ka option aata hai.</p>
+  <p class="muted"><a href="./" style="color:var(--g)">← Ek-page wala Multi Screen</a></p>
+</main>
+</body>
+</html>
