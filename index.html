@@ -24,6 +24,7 @@
   .pane.focus { border-color: var(--g); }
   .pane.hidden { display: none; }
   .grid.maxed .pane:not(.max) { display: none; }
+  .grid.maxed { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; }
   .bar { display: flex; gap: 5px; padding: 5px; background: var(--bar); align-items: center; }
   .num { width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: 6px; background: #0c0e12; color: var(--muted); font-size: 12px; font-weight: 700; }
   .bar input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: #0c0e12; color: var(--text); font: inherit; }
