@@ -22,6 +22,14 @@
   .grid { flex: 1; display: grid; gap: var(--gap); padding: var(--gap); min-height: 0; }
   .pane { display: flex; flex-direction: column; background: #000; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; min-height: 0; position: relative; }
   .pane.focus { border-color: var(--g); }
+  .pane { container-type: inline-size; }
+  /* chhoti screen (10-12 screens) me bar ke buttons chhote, number aur G chhupa (Enter = Google) */
+  @container (max-width: 330px) {
+    .num, .ib.g { display: none; }
+    .ib { height: 30px; min-width: 28px; padding: 0 6px; font-size: 13px; }
+    .bar input { padding: 6px 8px; font-size: 13px; }
+    .ysearch .ylogo { display: none; }
+  }
   .pane.hidden { display: none; }
   .grid.maxed .pane:not(.max) { display: none; }
   .grid.maxed { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; }
@@ -83,7 +91,8 @@
 
 <script>
 (() => {
-  const N = 6;
+  const N = 12;                                   // max screens
+  const OPTIONS = [1, 2, 3, 4, 6, 8, 9, 10, 12];
   const HOME = 'https://www.google.com/webhp?igu=1';
   const store = {
     get(k, d) { try { const v = localStorage.getItem('ms_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -92,11 +101,14 @@
   let count = store.get('count', 6);
   const urls = store.get('urls', Array(N).fill(HOME));
   const qs = store.get('qs', Array(N).fill(''));
+  while (urls.length < N) urls.push(HOME);
+  while (qs.length < N) qs.push('');
+  if (!OPTIONS.includes(count)) count = 6;
   // sirf wahi cheezein wapas kholo jo screen ke andar khul sakti hain (youtube.com jaisi refuse wali nahi)
   const canFrame = u => /^https:\/\/www\.google\.com\/(search|webhp)\?igu=1/.test(u || '') || /^https:\/\/www\.youtube\.com\/embed\//.test(u || '');
   const VIDEO_WORDS = /\b(song|songs|gaana|gana|gaane|gane|video|videos|movie|film|trailer|music|lofi|episode|cartoon|highlights|bhajan|status|remix|mashup|jukebox|podcast|stand ?up|comedy)\b/i;
   const grid = document.getElementById('grid');
-  const LAYOUT = { 1: [1, 1], 2: [2, 1], 3: [3, 1], 4: [2, 2], 6: [3, 2] };
+  const LAYOUT = { 1: [1, 1], 2: [2, 1], 3: [3, 1], 4: [2, 2], 6: [3, 2], 8: [4, 2], 9: [3, 3], 10: [5, 2], 12: [4, 3] };
 
   // ---- YouTube search (bina API key, public Piped/Invidious servers; jo chale)
   async function j(url) {
@@ -146,7 +158,8 @@
   const googleUrl = q => 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q);
 
   const panes = [];
-  for (let i = 0; i < N; i++) {
+  // screen tabhi banti hai jab zaroorat ho (12 Google ek saath load na hon)
+  function makePane(i) {
     const p = document.createElement('div');
     p.className = 'pane';
     p.innerHTML = `
@@ -306,13 +319,14 @@
   }
 
   function layout() {
+    while (panes.length < count) makePane(panes.length);
     const [c, r] = LAYOUT[count] || LAYOUT[6];
     grid.style.gridTemplateColumns = `repeat(${c}, 1fr)`;
     grid.style.gridTemplateRows = `repeat(${r}, 1fr)`;
     panes.forEach((x, i) => x.p.classList.toggle('hidden', i >= count));
     document.querySelectorAll('#count button').forEach(b => b.classList.toggle('on', +b.dataset.n === count));
   }
-  [1, 2, 3, 4, 6].forEach(n => {
+  OPTIONS.forEach(n => {
     const b = document.createElement('button');
     b.textContent = n; b.dataset.n = n; b.title = n + ' screens';
     b.onclick = () => { count = n; store.set('count', n); grid.classList.remove('maxed'); panes.forEach(x => x.p.classList.remove('max')); layout(); };
