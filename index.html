@@ -189,7 +189,8 @@
 
   let opened = [];
   function place(w, x, y, width, height) {
-    try { w.moveTo(Math.round(x), Math.round(y)); w.resizeTo(Math.round(width), Math.round(height)); } catch (e) {}
+    // pehle size, phir jagah: warna Chrome badi window ko screen me fit karne ke liye khiska deta hai
+    try { w.resizeTo(Math.round(width), Math.round(height)); w.moveTo(Math.round(x), Math.round(y)); } catch (e) {}
   }
   $('start').onclick = () => {
     opened.forEach(w => { try { w.close(); } catch (e) {} });
@@ -216,6 +217,14 @@
     const feat = b => `popup,left=${b[0]},top=${b[1]},width=${b[2]},height=${b[3]}`;
     const a = window.open('about:blank', 'sb_media_' + id, feat(boxes.media));
     const b = window.open('about:blank', 'sb_web_' + id, feat(boxes.web));
+    // Windows ki window ke chaaron taraf ek invisible border hota hai; beech wale kinaare pe use overlap karo taaki gap na dikhe
+    const ref = a || b;
+    let bd = 0;
+    try { bd = Math.max(0, Math.min(12, Math.round((ref.outerWidth - ref.innerWidth) / 2) - 1)); } catch (e) {}
+    if (bd && !other) {
+      const [left, right] = boxes.media[0] < boxes.web[0] ? [boxes.media, boxes.web] : [boxes.web, boxes.media];
+      left[2] += bd; right[0] -= bd; right[2] += bd;
+    }
     if (a) { place(a, ...boxes.media); a.location.href = mediaUrl; opened.push(a); }
     if (b) { place(b, ...boxes.web); b.location.href = webUrl; opened.push(b); }
     if (!a || !b) {
@@ -264,11 +273,10 @@
   }
 
   // Search: public Piped / Invidious servers (bina API key). Kabhi kabhi down hote hain, isliye kai try.
+  const piped = host => async q => (await j(`https://${host}/search?q=${encodeURIComponent(q)}&filter=videos`)).items
+    .filter(x => x.url && x.url.includes('v=')).map(x => ({ id: x.url.split('v=')[1].slice(0, 11), title: x.title, thumb: x.thumbnail }));
   const SEARCHERS = [
-    async q => (await j(`https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(q)}&filter=videos`)).items
-      .filter(x => x.url && x.url.includes('v=')).map(x => ({ id: x.url.split('v=')[1].slice(0, 11), title: x.title, thumb: x.thumbnail })),
-    async q => (await j(`https://api.piped.private.coffee/search?q=${encodeURIComponent(q)}&filter=videos`)).items
-      .filter(x => x.url && x.url.includes('v=')).map(x => ({ id: x.url.split('v=')[1].slice(0, 11), title: x.title, thumb: x.thumbnail })),
+    piped('api.piped.private.coffee'), piped('pipedapi.kavin.rocks'), piped('pipedapi.adminforge.de'), piped('api.piped.yt'),
     async q => (await j(`https://inv.nadeko.net/api/v1/search?type=video&q=${encodeURIComponent(q)}`))
       .filter(x => x.videoId).map(x => ({ id: x.videoId, title: x.title, thumb: `https://i.ytimg.com/vi/${x.videoId}/mqdefault.jpg` })),
     async q => (await j(`https://yewtu.be/api/v1/search?type=video&q=${encodeURIComponent(q)}`))
