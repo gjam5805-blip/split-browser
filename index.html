@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Split Browser</title>
+<meta name="description" content="Ek click me screen do hisson me: ek taraf video/music, doosri taraf browsing.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='10' width='26' height='44' rx='6' fill='%23ff4d6d'/%3E%3Crect x='34' y='10' width='26' height='44' rx='6' fill='%234dabff'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a;
+    --text: #eef1f6; --muted: #9aa3b2; --media: #ff4d6d; --web: #4dabff; --ok: #3ddc97; --warn: #ffb84d;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1080px; margin: 0 auto; padding: 28px 16px 60px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+  .logo { display: flex; gap: 4px; }
+  .logo span { width: 18px; height: 30px; border-radius: 5px; }
+  .logo span:first-child { background: var(--media); } .logo span:last-child { background: var(--web); }
+  h1 { font-size: 28px; margin: 0; letter-spacing: -.02em; }
+  header p { margin: 2px 0 0; color: var(--muted); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; }
+  h2 { font-size: 19px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .side { background: var(--panel2); border-radius: 12px; padding: 14px; border-top: 4px solid var(--media); }
+  .side.web { border-top-color: var(--web); }
+  .side h3 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--media); } .web .dot { background: var(--web); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chip { border: 1px solid var(--line); background: transparent; color: var(--text); padding: 8px 12px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 14px; }
+  .chip:hover { border-color: var(--muted); }
+  .chip[aria-pressed="true"] { background: var(--media); border-color: var(--media); color: #fff; }
+  .web .chip[aria-pressed="true"], .layout .chip[aria-pressed="true"] { background: var(--web); border-color: var(--web); }
+  input[type=text] { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: #0c0e12; color: var(--text); font: inherit; }
+  input[type=text]:focus { outline: 2px solid var(--web); border-color: transparent; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+  .layout { display: flex; gap: 8px; flex-wrap: wrap; }
+  .preview { display: flex; height: 44px; width: 120px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+  .preview div { display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; transition: flex .2s; }
+  .pm { background: var(--media); } .pw { background: var(--web); }
+  .go { margin-left: auto; background: var(--ok); color: #06210f; border: 0; padding: 14px 26px; border-radius: 12px; font: inherit; font-weight: 700; font-size: 17px; cursor: pointer; }
+  .go:hover { filter: brightness(1.08); } .go.alt { background: var(--media); color: #fff; }
+  .btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line); padding: 10px 14px; border-radius: 10px; font: inherit; cursor: pointer; }
+  .btn:hover { border-color: var(--muted); }
+  .msg { margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-size: 14px; display: none; }
+  .msg.show { display: block; } .msg.ok { background: #12301f; color: #a8f0cb; } .msg.warn { background: #33270f; color: #ffd99a; }
+  .help { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .help div { background: var(--panel2); border-radius: 12px; padding: 12px 14px; font-size: 14px; color: var(--muted); }
+  .help b { color: var(--text); display: block; margin-bottom: 4px; }
+  kbd { background: #0c0e12; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font-size: 12px; color: var(--text); }
+  .results { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin-top: 12px; }
+  .res { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; cursor: pointer; text-align: left; color: var(--text); padding: 0; font: inherit; }
+  .res:hover { border-color: var(--media); }
+  .res img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: #000; }
+  .res span { display: block; padding: 8px 10px; font-size: 13px; line-height: 1.3; }
+  @media (max-width: 760px) { .cols, .help { grid-template-columns: 1fr; } .go { margin-left: 0; width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="logo"><span></span><span></span></div>
+    <div>
+      <h1>Split Browser</h1>
+      <p>Ek click me screen do hisson me: ek taraf video ya music, doosri taraf browsing.</p>
+    </div>
+  </header>
+
+  <section>
+    <h2>① Side by side</h2>
+    <p class="sub">Dono taraf asli website khulegi (login, search, playlist sab chalega). Pehli baar Chrome "pop-ups blocked" bole toh <b>Always allow</b> kar dena.</p>
+    <div class="cols" id="sides">
+      <div class="side media">
+        <h3><i class="dot"></i>Video / Music</h3>
+        <div class="chips" id="mediaChips"></div>
+        <input type="text" id="mediaQ" placeholder="Kya chalana hai? (jaise: arijit singh)">
+      </div>
+      <div class="side web">
+        <h3><i class="dot"></i>Browsing</h3>
+        <div class="chips" id="webChips"></div>
+        <input type="text" id="webQ" placeholder="Kya dhoondhna hai? Ya koi website likho (jaise: amazon.in)">
+      </div>
+    </div>
+    <div class="row">
+      <div class="layout" id="layoutChips"></div>
+      <div class="preview" id="preview"><div class="pm">VIDEO</div><div class="pw">WEB</div></div>
+      <button class="btn" id="swap" title="Video ko doosri taraf karo">⇄ Swap</button>
+      <button class="btn" id="screens" hidden title="Video projector pe, browsing laptop pe">📽 Do screen</button>
+      <button class="go" id="start">▶ Split karo</button>
+    </div>
+    <div class="msg" id="splitMsg"></div>
+  </section>
+
+  <section>
+    <h2>② Floating mini player</h2>
+    <p class="sub">Video ek chhoti window me <b>hamesha upar</b> chalta rahega, aur tum normal Chrome tabs me browse karte raho. YouTube ya Spotify ka link paste karo, ya gaana search karo.</p>
+    <div class="row" style="margin-top:0">
+      <input type="text" id="pipQ" placeholder="YouTube/Spotify link ya gaane ka naam" style="flex:1;min-width:240px">
+      <button class="go alt" id="pipGo" style="margin-left:0">🎵 Float karo</button>
+    </div>
+    <div class="msg" id="pipMsg"></div>
+    <div class="results" id="results"></div>
+  </section>
+
+  <section>
+    <h2>Tips</h2>
+    <div class="help">
+      <div><b>Size badalna</b>Dono windows ke beech ki line ko mouse se kheencho, ya window pe <kbd>Win</kbd> + <kbd>←</kbd> / <kbd>→</kbd>.</div>
+      <div><b>Video badi karna</b>YouTube pe <kbd>F</kbd> = fullscreen, <kbd>K</kbd> = pause, <kbd>J</kbd>/<kbd>L</kbd> = 10 sec peeche/aage.</div>
+      <div><b>Kisi bhi laptop pe</b>Bas ye link Chrome me kholo. Settings har laptop pe yaad rehti hain.</div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const MEDIA = [
+    { k: 'yt', n: 'YouTube', home: 'https://www.youtube.com/', q: s => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(s) },
+    { k: 'ytm', n: 'YT Music', home: 'https://music.youtube.com/', q: s => 'https://music.youtube.com/search?q=' + encodeURIComponent(s) },
+    { k: 'sp', n: 'Spotify', home: 'https://open.spotify.com/', q: s => 'https://open.spotify.com/search/' + encodeURIComponent(s) },
+    { k: 'js', n: 'JioSaavn', home: 'https://www.jiosaavn.com/', q: s => 'https://www.jiosaavn.com/search/' + encodeURIComponent(s) },
+    { k: 'nf', n: 'Netflix', home: 'https://www.netflix.com/', q: s => 'https://www.netflix.com/search?q=' + encodeURIComponent(s) },
+    { k: 'hs', n: 'Hotstar', home: 'https://www.hotstar.com/', q: s => 'https://www.hotstar.com/in/explore?search_query=' + encodeURIComponent(s) },
+    { k: 'pv', n: 'Prime Video', home: 'https://www.primevideo.com/', q: s => 'https://www.primevideo.com/search/?phrase=' + encodeURIComponent(s) },
+  ];
+  const WEB = [
+    { k: 'g', n: 'Google', home: 'https://www.google.com/', q: s => 'https://www.google.com/search?q=' + encodeURIComponent(s) },
+    { k: 'yt', n: 'YouTube', home: 'https://www.youtube.com/', q: s => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(s) },
+    { k: 'wa', n: 'WhatsApp', home: 'https://web.whatsapp.com/', q: null },
+    { k: 'gm', n: 'Gmail', home: 'https://mail.google.com/', q: null },
+    { k: 'amz', n: 'Amazon', home: 'https://www.amazon.in/', q: s => 'https://www.amazon.in/s?k=' + encodeURIComponent(s) },
+    { k: 'wk', n: 'Wikipedia', home: 'https://hi.wikipedia.org/', q: s => 'https://www.google.com/search?q=' + encodeURIComponent(s + ' wikipedia') },
+  ];
+  const LAYOUTS = [{ k: '50', n: '50 | 50', r: .5 }, { k: '60', n: '60 | 40', r: .6 }, { k: '70', n: '70 | 30', r: .7 }];
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('sb_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('sb_' + k, JSON.stringify(v)); } catch (e) {} },
+  };
+  const st = { media: store.get('media', 'yt'), web: store.get('web', 'g'), layout: store.get('layout', '60'), swap: store.get('swap', false), screens: false };
+  const $ = id => document.getElementById(id);
+
+  function chips(el, list, key, onPick) {
+    el.innerHTML = '';
+    list.forEach(it => {
+      const b = document.createElement('button');
+      b.className = 'chip'; b.textContent = it.n; b.setAttribute('aria-pressed', String(st[key] === it.k));
+      b.onclick = () => { st[key] = it.k; store.set(key, it.k); chips(el, list, key, onPick); onPick && onPick(); };
+      el.appendChild(b);
+    });
+  }
+  function drawPreview() {
+    const r = LAYOUTS.find(l => l.k === st.layout).r;
+    const [a, b] = $('preview').children;
+    a.style.flex = st.swap ? (1 - r) : r; b.style.flex = st.swap ? r : (1 - r);
+    $('preview').style.flexDirection = st.swap ? 'row-reverse' : 'row';
+  }
+  chips($('mediaChips'), MEDIA, 'media');
+  chips($('webChips'), WEB, 'web');
+  chips($('layoutChips'), LAYOUTS, 'layout', drawPreview);
+  drawPreview();
+  $('swap').onclick = () => { st.swap = !st.swap; store.set('swap', st.swap); drawPreview(); };
+
+  function show(id, text, kind) { const m = $(id); m.textContent = text; m.className = 'msg show ' + (kind || 'ok'); }
+
+  function toUrl(list, key, q) {
+    const it = list.find(x => x.k === st[key]);
+    q = (q || '').trim();
+    if (!q) return it.home;
+    if (/^https?:\/\//i.test(q)) return q;
+    if (/^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(q)) return 'https://' + q;   // amazon.in jaisa
+    return it.q ? it.q(q) : 'https://www.google.com/search?q=' + encodeURIComponent(q);
+  }
+
+  // Window Management API: projector (doosri screen) mil jaye toh "Do screen" button dikhao
+  let screenDetails = null;
+  if ('getScreenDetails' in window && window.screen.isExtended) $('screens').hidden = false;
+  $('screens').onclick = async () => {
+    try {
+      screenDetails = await window.getScreenDetails();
+      st.screens = !st.screens;
+      $('screens').style.borderColor = st.screens ? 'var(--ok)' : '';
+      show('splitMsg', st.screens ? '📽 Video doosri screen (projector) pe poori khulegi, browsing is screen pe.' : 'Dono ek hi screen pe.', 'ok');
+    } catch (e) { show('splitMsg', 'Chrome ne screens ki permission nahi di.', 'warn'); }
+  };
+
+  let opened = [];
+  function place(w, x, y, width, height) {
+    try { w.moveTo(Math.round(x), Math.round(y)); w.resizeTo(Math.round(width), Math.round(height)); } catch (e) {}
+  }
+  $('start').onclick = () => {
+    opened.forEach(w => { try { w.close(); } catch (e) {} });
+    opened = [];
+    const mediaUrl = toUrl(MEDIA, 'media', $('mediaQ').value);
+    const webUrl = toUrl(WEB, 'web', $('webQ').value);
+    const r = LAYOUTS.find(l => l.k === st.layout).r;
+    let main = window.screen, other = null;
+    if (st.screens && screenDetails && screenDetails.screens.length > 1) {
+      main = screenDetails.currentScreen;
+      other = screenDetails.screens.find(s => s !== main);
+    }
+    const L = main.availLeft || 0, T = main.availTop || 0, W = main.availWidth, H = main.availHeight;
+    const id = Date.now();
+    let boxes;
+    if (other) {
+      boxes = { media: [other.availLeft, other.availTop, other.availWidth, other.availHeight], web: [L, T, W, H] };
+    } else {
+      const mw = Math.round(W * r);
+      boxes = st.swap
+        ? { web: [L, T, W - mw, H], media: [L + W - mw, T, mw, H] }
+        : { media: [L, T, mw, H], web: [L + mw, T, W - mw, H] };
+    }
+    const feat = b => `popup,left=${b[0]},top=${b[1]},width=${b[2]},height=${b[3]}`;
+    const a = window.open('about:blank', 'sb_media_' + id, feat(boxes.media));
+    const b = window.open('about:blank', 'sb_web_' + id, feat(boxes.web));
+    if (a) { place(a, ...boxes.media); a.location.href = mediaUrl; opened.push(a); }
+    if (b) { place(b, ...boxes.web); b.location.href = webUrl; opened.push(b); }
+    if (!a || !b) {
+      show('splitMsg', '⚠️ Chrome ne pop-up roka. Address bar ke right me 🚫 icon pe click karo → "Always allow pop-ups" → phir se "Split karo" dabao.', 'warn');
+    } else {
+      show('splitMsg', '✅ Ho gaya! Video aur browsing alag windows me khul gaye. Beech ki line kheench ke size badal sakte ho.', 'ok');
+    }
+  };
+  ['mediaQ', 'webQ'].forEach(i => $(i).addEventListener('keydown', e => { if (e.key === 'Enter') $('start').click(); }));
+
+  // ---------- Floating mini player ----------
+  function parseLink(s) {
+    s = s.trim();
+    let m = s.match(/[?&]list=([\w-]+)/);
+    const v = s.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([\w-]{11})/);
+    if (v) return { kind: 'yt', src: `https://www.youtube.com/embed/${v[1]}?autoplay=1&rel=0` + (m ? `&list=${m[1]}` : '') };
+    if (m && /youtu/.test(s)) return { kind: 'yt', src: `https://www.youtube.com/embed/videoseries?list=${m[1]}&autoplay=1` };
+    const sp = s.match(/open\.spotify\.com\/(?:intl-\w+\/)?(track|album|playlist|episode|show|artist)\/(\w+)/);
+    if (sp) return { kind: 'sp', src: `https://open.spotify.com/embed/${sp[1]}/${sp[2]}?autoplay=1` };
+    return null;
+  }
+
+  let pipWin = null;
+  async function floatPlayer(src, title) {
+    const w = 520, h = 300;
+    try { if (pipWin && !pipWin.closed) pipWin.close(); } catch (e) {}
+    if ('documentPictureInPicture' in window) {
+      try {
+        pipWin = await documentPictureInPicture.requestWindow({ width: w, height: h });
+        const d = pipWin.document;
+        d.title = title || 'Mini player';
+        d.body.style.cssText = 'margin:0;background:#000;overflow:hidden';
+        const f = d.createElement('iframe');
+        f.src = src; f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write';
+        f.allowFullscreen = true;
+        f.style.cssText = 'border:0;width:100vw;height:100vh;display:block';
+        d.body.appendChild(f);
+        show('pipMsg', '✅ Mini player chalu. Ab kisi bhi tab me browse karo, video upar rahega. Kona kheench ke size badlo.', 'ok');
+        return;
+      } catch (e) { /* neeche wala popup try karo */ }
+    }
+    const pw = window.open('about:blank', 'sb_pip', `popup,width=${w},height=${h},left=${screen.availWidth - w - 20},top=${screen.availHeight - h - 20}`);
+    if (!pw) return show('pipMsg', '⚠️ Pop-up roka gaya. Address bar me 🚫 icon → "Always allow" → dobara try karo.', 'warn');
+    pw.document.write(`<title>${(title || 'Mini player').replace(/</g, '')}</title><body style="margin:0;background:#000"><iframe src="${src}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen style="border:0;width:100vw;height:100vh"></iframe></body>`);
+    show('pipMsg', 'Is browser me "hamesha upar" wala player nahi hai, isliye chhoti window me khol diya.', 'warn');
+  }
+
+  // Search: public Piped / Invidious servers (bina API key). Kabhi kabhi down hote hain, isliye kai try.
+  const SEARCHERS = [
+    async q => (await j(`https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(q)}&filter=videos`)).items
+      .filter(x => x.url && x.url.includes('v=')).map(x => ({ id: x.url.split('v=')[1].slice(0, 11), title: x.title, thumb: x.thumbnail })),
+    async q => (await j(`https://api.piped.private.coffee/search?q=${encodeURIComponent(q)}&filter=videos`)).items
+      .filter(x => x.url && x.url.includes('v=')).map(x => ({ id: x.url.split('v=')[1].slice(0, 11), title: x.title, thumb: x.thumbnail })),
+    async q => (await j(`https://inv.nadeko.net/api/v1/search?type=video&q=${encodeURIComponent(q)}`))
+      .filter(x => x.videoId).map(x => ({ id: x.videoId, title: x.title, thumb: `https://i.ytimg.com/vi/${x.videoId}/mqdefault.jpg` })),
+    async q => (await j(`https://yewtu.be/api/v1/search?type=video&q=${encodeURIComponent(q)}`))
+      .filter(x => x.videoId).map(x => ({ id: x.videoId, title: x.title, thumb: `https://i.ytimg.com/vi/${x.videoId}/mqdefault.jpg` })),
+  ];
+  async function j(url) {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), 6000);
+    try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) throw new Error(r.status); return await r.json(); }
+    finally { clearTimeout(t); }
+  }
+  async function search(q) {
+    for (const s of SEARCHERS) {
+      try { const r = await s(q); if (r && r.length) return r.slice(0, 8); } catch (e) {}
+    }
+    return [];
+  }
+
+  $('pipGo').onclick = async () => {
+    const q = $('pipQ').value.trim();
+    $('results').innerHTML = '';
+    if (!q) return show('pipMsg', 'Pehle link paste karo ya gaane ka naam likho.', 'warn');
+    const link = parseLink(q);
+    if (link) return floatPlayer(link.src, q);
+    show('pipMsg', '🔎 Dhoondh raha hoon…', 'ok');
+    const res = await search(q);
+    if (!res.length) return show('pipMsg', 'Search abhi nahi chala. YouTube pe gaana khol ke uska link copy karo aur yahan paste karo.', 'warn');
+    show('pipMsg', 'Jo chalana hai us pe click karo:', 'ok');
+    res.forEach(v => {
+      const b = document.createElement('button');
+      b.className = 'res';
+      const img = document.createElement('img'); img.src = v.thumb || `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`; img.alt = ''; img.loading = 'lazy';
+      const sp = document.createElement('span'); sp.textContent = v.title;
+      b.append(img, sp);
+      b.onclick = () => floatPlayer(`https://www.youtube.com/embed/${v.id}?autoplay=1&rel=0`, v.title);
+      $('results').appendChild(b);
+    });
+  };
+  $('pipQ').addEventListener('keydown', e => { if (e.key === 'Enter') $('pipGo').click(); });
+})();
+</script>
+</body>
+</html>
