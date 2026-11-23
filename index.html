@@ -366,14 +366,17 @@
     if (!st) return Promise.resolve(false);
     if (st === 'ready') return Promise.resolve(true);
     return new Promise(res => {
-      const t = setTimeout(() => res(document.documentElement.dataset.msExt === 'ready'), 2500);
-      document.addEventListener('ms-ext-ready', () => { clearTimeout(t); res(true); }, { once: true });
+      document.getElementById('extBadge').textContent = '⏳ Extension se jud raha hai…';
+      const t = setTimeout(() => res(document.documentElement.dataset.msExt === 'ready'), 14000);
+      document.addEventListener('ms-ext-ready', () => { clearTimeout(t); res(document.documentElement.dataset.msExt === 'ready'); }, { once: true });
     });
   }
   waitExt().then(on => {
     EXT = on;
     const badge = document.getElementById('extBadge');
     if (EXT) { badge.textContent = '✅ Asli YouTube ON'; badge.className = 'ext on'; badge.removeAttribute('href'); }
+    else if (document.documentElement.dataset.msExt) { badge.textContent = '⚠️ Extension jud nahi paya, page refresh karo'; }
+    else badge.textContent = '⚡ Asli YouTube chahiye? Extension lagao';
     layout();
   });
 })();
