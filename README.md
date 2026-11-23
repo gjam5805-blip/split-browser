@@ -1,11 +1,12 @@
-# Split Browser
+﻿# Multi Screen
 
-One click splits the screen: video or music on one side, browsing on the other.
-Also has a floating mini player that stays on top while you browse.
+One page, up to 6 screens. Each screen has Google search (loads inside the page) and a YouTube button that finds and plays a video right there. Click, scroll and tap work inside every screen.
 
 Open: https://gjam5805-blip.github.io/split-browser/
 
-- **Side by side**: opens YouTube / YT Music / Spotify / JioSaavn / Netflix / Hotstar / Prime Video next to Google / WhatsApp / Gmail / Amazon, in 50|50, 60|40 or 70|30. With two screens (projector), video can go full on the second screen.
-- **Floating mini player**: paste a YouTube or Spotify link (or search a song) and it plays in an always-on-top window (Chrome / Edge).
+- Type in a screen and press Enter: Google search in that screen.
+- Press ▶: YouTube results in that screen, tap one to play. A pasted YouTube link plays directly.
+- ⤢ makes one screen big, ⌂ goes back to Google, 🔇 mutes a playing video.
+- Choose 1, 2, 3, 4 or 6 screens at the top. Each laptop remembers its own screens.
 
-First time on a laptop: allow pop-ups for this site when Chrome asks.
+Some websites (youtube.com itself, Instagram and others) refuse to open inside another page; use ▶ for videos.
