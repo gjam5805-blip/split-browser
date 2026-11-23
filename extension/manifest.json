@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Multi Screen Helper",
+  "version": "1.0.0",
+  "description": "Multi Screen page ki screens me asli YouTube aur baaki websites kholne deta hai. Sirf Multi Screen wale tab ke andar kaam karta hai.",
+  "permissions": ["declarativeNetRequestWithHostAccess"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://gjam5805-blip.github.io/split-browser/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "icons": { "128": "icon128.png" }
+}

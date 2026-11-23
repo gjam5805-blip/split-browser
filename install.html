@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Extension Setup</title>
+<meta name="description" content="Multi Screen me asli YouTube kholne ke liye extension lagane ke steps.">
+<style>
+  :root { --bg: #0f1115; --panel: #171a21; --line: #2a2f3a; --text: #eef1f6; --muted: #9aa3b2; --g: #4dabff; --yt: #ff4d6d; --ok: #3ddc97; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 28px 16px 60px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  .sub { color: var(--muted); margin: 0 0 22px; }
+  ol { list-style: none; padding: 0; margin: 0; counter-reset: s; }
+  li { counter-increment: s; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 16px 16px 64px; margin-bottom: 12px; position: relative; }
+  li::before { content: counter(s); position: absolute; left: 16px; top: 16px; width: 32px; height: 32px; border-radius: 50%; background: var(--g); color: #fff; font-weight: 800; display: grid; place-items: center; }
+  li b { display: block; font-size: 17px; margin-bottom: 4px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .btn { display: inline-block; margin-top: 8px; background: var(--ok); color: #06210f; font-weight: 800; padding: 12px 20px; border-radius: 10px; text-decoration: none; border: 0; font: inherit; font-weight: 800; cursor: pointer; }
+  code { background: #0c0e12; border: 1px solid var(--line); padding: 3px 8px; border-radius: 6px; font-size: 15px; }
+  .copy { margin-left: 6px; background: #22262f; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+  .note { background: #1c1a12; border: 1px solid #4a3f1c; color: #ffd99a; border-radius: 12px; padding: 12px 14px; font-size: 14px; margin-top: 18px; }
+  a { color: var(--g); }
+</style>
+</head>
+<body>
+<main>
+  <h1>⚡ Asli YouTube: extension lagao</h1>
+  <p class="sub">Har laptop pe ek baar, ~2 minute. Iske baad Multi Screen ki har screen me asli youtube.com (home, recommendations, sab), Instagram, Facebook bhi khulenge.</p>
+  <ol>
+    <li><b>Extension download karo</b>
+      <a class="btn" href="multiscreen-helper.zip" download>⬇ multiscreen-helper.zip</a>
+      <div class="muted">Download hone ke baad zip pe right-click → <b>Extract All</b> (Mac pe bas double-click). Ek folder banega <code>MultiScreenHelper</code>. Isse aisi jagah rakho jahan se delete na ho (jaise Documents).</div>
+    </li>
+    <li><b>Chrome ka extensions page kholo</b>
+      Nayi tab me ye likho aur Enter: <code id="u">chrome://extensions</code><button class="copy" onclick="navigator.clipboard.writeText('chrome://extensions');this.textContent='Copied ✓'">Copy</button>
+      <div class="muted">Microsoft Edge me: <code>edge://extensions</code></div>
+    </li>
+    <li><b>"Developer mode" ON karo</b>
+      <div class="muted">Page ke upar right side me ek switch hai (Edge me left side, neeche). Use ON kar do.</div>
+    </li>
+    <li><b>"Load unpacked" dabao aur folder chuno</b>
+      <div class="muted">Wahi <code>MultiScreenHelper</code> folder select karo jisme <code>manifest.json</code> hai, aur <b>Select Folder</b> dabao. "Multi Screen Helper" ka card aa jayega.</div>
+    </li>
+    <li><b>Multi Screen page refresh karo</b>
+      <a class="btn" href="./">↩ Multi Screen kholo</a>
+      <div class="muted">Upar <b>✅ Asli YouTube ON</b> dikhega. Ab kisi screen me <b>youtube</b> likh ke Enter dabao.</div>
+    </li>
+  </ol>
+  <div class="note">
+    Chrome install ke time bol sakta hai ki extension "sab websites ka data padh aur badal sakta hai". Ye isliye kyunki YouTube jaisi har site ki "mujhe andar mat kholo" wali line hatani padti hai.
+    Extension ye sirf <b>Multi Screen wale tab ke andar ki screens</b> ke liye karta hai. Baaki tabs, aur koi data, wo chhoota bhi nahi.
+  </div>
+</main>
+</body>
+</html>

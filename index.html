@@ -19,6 +19,9 @@
   .seg button.on { background: var(--g); color: #fff; }
   .tbtn { background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 9px; padding: 7px 12px; font: inherit; cursor: pointer; }
   .tbtn:hover { color: var(--text); }
+  .ext { font-size: 13px; padding: 6px 10px; border-radius: 9px; border: 1px solid var(--yt); color: #ffb3c1; text-decoration: none; white-space: nowrap; }
+  .ext:hover { background: rgba(255,77,109,.12); }
+  .ext.on { border-color: #3ddc97; color: #a8f0cb; cursor: default; }
   .grid { flex: 1; display: grid; gap: var(--gap); padding: var(--gap); min-height: 0; }
   .pane { display: flex; flex-direction: column; background: #000; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; min-height: 0; position: relative; }
   .pane.focus { border-color: var(--g); }
@@ -85,7 +88,8 @@
     <b>Multi Screen</b>
     <div class="seg" id="count"></div>
     <button class="tbtn" id="reset" title="Sab screens wapas Google pe">↺ Sab reset</button>
-    <span style="color:var(--muted);font-size:13px">Har screen me: likho → Enter = Google · ▶ = YouTube (isi screen me) · ⤢ = badi screen</span>
+    <a class="ext" id="extBadge" href="install.html" target="_blank" rel="noopener">⚡ Asli YouTube chahiye? Extension lagao</a>
+    <span style="color:var(--muted);font-size:13px">Har screen me: likho → Enter = Google · ▶ = YouTube · ⤢ = badi screen</span>
   </div>
   <div class="grid" id="grid"></div>
 
@@ -105,6 +109,7 @@
   while (qs.length < N) qs.push('');
   if (!OPTIONS.includes(count)) count = 6;
   // sirf wahi cheezein wapas kholo jo screen ke andar khul sakti hain (youtube.com jaisi refuse wali nahi)
+  let EXT = false;   // Multi Screen Helper extension laga hai?
   const canFrame = u => /^https:\/\/www\.google\.com\/(search|webhp)\?igu=1/.test(u || '') || /^https:\/\/www\.youtube\.com\/embed\//.test(u || '');
   const VIDEO_WORDS = /\b(song|songs|gaana|gana|gaane|gane|video|videos|movie|film|trailer|music|lofi|episode|cartoon|highlights|bhajan|status|remix|mashup|jukebox|podcast|stand ?up|comedy)\b/i;
   const grid = document.getElementById('grid');
@@ -186,6 +191,8 @@
       mute: p.querySelector('.mute'), back: p.querySelector('.back'), muted: false, hasList: false, googleTip: false,
     };
     panes.push(el);
+    // Extension mode me koi bhi site khul sakti hai; sandbox se koi site poore page ko apne paas nahi le ja sakti
+    if (EXT) el.frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads allow-modals allow-pointer-lock allow-orientation-lock allow-storage-access-by-user-activation');
 
     const tip = (t, ms = 5000) => { el.tip.textContent = t; el.tip.classList.add('show'); clearTimeout(el.tt); el.tt = setTimeout(() => el.tip.classList.remove('show'), ms); };
     const yt = (func) => { try { el.frame.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*'); } catch (e) {} };
@@ -207,7 +214,7 @@
     // Screen ke andar kisi link pe click hua (humne nahi badla) → neeche "Wapas / YouTube" ki patti dikhao
     el.frame.addEventListener('load', () => {
       if (el.expect > 0) { el.expect--; return; }
-      if (/youtube\.com\/embed/.test(el.lastUrl || '')) return;
+      if (EXT || /youtube\.com\/embed/.test(el.lastUrl || '')) return;
       el.strip.classList.add('show');
     });
     p.querySelector('.back2').onclick = () => load(el.lastUrl || HOME, false);
@@ -268,7 +275,20 @@
       showList('🔥 India me trending — upar search karo, category chuno, ya video pe tap karo:', res, '🔥 Trending');
     };
 
+    // ---- Extension laga hai → asli websites (youtube.com bhi) seedha screen me
+    const ytReal = q => load(q ? 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q) : 'https://www.youtube.com/');
+    const goReal = () => {
+      const q = el.input.value.trim();
+      if (!q) return load(HOME);
+      if (isYouTubeWord(q)) return ytReal('');
+      if (/^https?:\/\//i.test(q) || isUrl(q)) return load(/^https?:/i.test(q) ? q : 'https://' + q);
+      if (/\byou ?tube\b/i.test(q)) return ytReal(q.replace(/\b(on|pe|par|me)?\s*you ?tube\b/ig, ' ').replace(/\s+/g, ' ').trim());
+      if (VIDEO_WORDS.test(q)) return ytReal(q);
+      load(googleUrl(q));
+    };
+
     const goGoogle = () => {
+      if (EXT) return goReal();
       const q = el.input.value.trim();
       if (!q) return load(HOME);
       const emb = ytEmbed(q);
@@ -290,6 +310,11 @@
     };
     const goYouTube = () => {
       const q = el.input.value.trim();
+      if (EXT) {
+        if (!q || isYouTubeWord(q)) return ytReal('');
+        if (/youtu\.?be/i.test(q) && (/^https?:\/\//i.test(q) || isUrl(q))) return load(/^https?:/i.test(q) ? q : 'https://' + q);
+        return ytReal(q.replace(/\b(on|pe|par|me)?\s*you ?tube\b/ig, ' ').trim() || q);
+      }
       if (!q || isYouTubeWord(q)) return ytHome();
       const emb = ytEmbed(q);
       if (emb) return load(emb);
@@ -314,8 +339,9 @@
       el.mute.textContent = el.muted ? '🔊' : '🔇';
     };
     p.addEventListener('pointerdown', () => { panes.forEach(x => x.p.classList.remove('focus')); p.classList.add('focus'); });
-    el.input.value = canFrame(urls[i]) ? (qs[i] || '') : '';
-    load(canFrame(urls[i]) ? urls[i] : HOME, false);
+    const ok = EXT ? /^https?:\/\//.test(urls[i] || '') : canFrame(urls[i]);
+    el.input.value = ok ? (qs[i] || '') : '';
+    load(ok ? urls[i] : HOME, false);
   }
 
   function layout() {
@@ -333,7 +359,23 @@
     document.getElementById('count').appendChild(b);
   });
   document.getElementById('reset').onclick = () => panes.forEach(x => { x.input.value = ''; x.load(HOME); });
-  layout();
+
+  // Extension (Multi Screen Helper) laga hai? Uske register hone ka wait karo, phir screens banao
+  function waitExt() {
+    const st = document.documentElement.dataset.msExt;
+    if (!st) return Promise.resolve(false);
+    if (st === 'ready') return Promise.resolve(true);
+    return new Promise(res => {
+      const t = setTimeout(() => res(document.documentElement.dataset.msExt === 'ready'), 2500);
+      document.addEventListener('ms-ext-ready', () => { clearTimeout(t); res(true); }, { once: true });
+    });
+  }
+  waitExt().then(on => {
+    EXT = on;
+    const badge = document.getElementById('extBadge');
+    if (EXT) { badge.textContent = '✅ Asli YouTube ON'; badge.className = 'ext on'; badge.removeAttribute('href'); }
+    layout();
+  });
 })();
 </script>
 </body>
