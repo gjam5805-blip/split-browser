@@ -52,8 +52,9 @@
   .ysearch input:focus { outline: 2px solid var(--yt); border-color: transparent; }
   .ysearch button { height: 40px; width: 56px; border-radius: 999px; border: 1px solid #3a3f4b; background: #22262f; color: var(--text); font-size: 16px; cursor: pointer; }
   .ysearch button:hover { background: #2c313c; }
-  .ychips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-  .ychip { background: #1b1f27; border: 1px solid var(--line); color: var(--text); border-radius: 999px; padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .ychips { display: flex; gap: 6px; margin-bottom: 10px; overflow-x: auto; scrollbar-width: none; }
+  .ychips::-webkit-scrollbar { display: none; }
+  .ychip { flex: none; white-space: nowrap; background: #1b1f27; border: 1px solid var(--line); color: var(--text); border-radius: 999px; padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
   .ychip:hover { border-color: var(--muted); }
   .ychip.on { background: var(--yt); border-color: var(--yt); color: #fff; }
   .tip { position: absolute; left: 8px; right: 8px; bottom: 8px; background: rgba(20,22,28,.92); color: #ffd99a; font-size: 12.5px; padding: 7px 10px; border-radius: 8px; display: none; }
