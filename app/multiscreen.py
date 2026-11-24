@@ -406,14 +406,18 @@ class App:
         # ---- command box: jo bolo, screens pe ho jaye
         cbox = tk.Frame(f, bg=PANEL, padx=10, pady=8)
         cbox.pack(fill='x', pady=(6, 8))
-        tk.Label(cbox, text='🎤 Command do (Win+H se bol bhi sakte ho):', fg=MUTED, bg=PANEL, font=('Segoe UI', 10)).pack(anchor='w')
+        tk.Label(cbox, text='🎤 Command do  (Win+H se bolo · Enter = chalao)', fg=MUTED, bg=PANEL,
+                 font=('Segoe UI', 10)).pack(anchor='w')
         crow = tk.Frame(cbox, bg=PANEL)
-        crow.pack(fill='x', pady=(4, 2))
-        self.cmd = tk.Entry(crow, font=('Segoe UI', 12), bg=BG, fg=TEXT, insertbackground=TEXT, relief='flat')
-        self.cmd.pack(side='left', fill='x', expand=True, ipady=6)
-        self.cmd.bind('<Return>', lambda e: self.run_command())
-        tk.Button(crow, text='▶ Karo', command=self.run_command, font=('Segoe UI', 11, 'bold'), relief='flat', bd=0, bg=GREEN,
-                  fg='#06210f', activebackground='#2fc483', cursor='hand2').pack(side='left', padx=(6, 0), ipady=4, ipadx=6)
+        crow.pack(fill='x', pady=(6, 4))
+        # bada, kai line wala box: Enter = chalao, Shift+Enter = nayi line
+        self.cmd = tk.Text(crow, height=4, width=22, wrap='word', font=('Segoe UI', 14), bg=BG, fg=TEXT, insertbackground=TEXT,
+                           relief='flat', padx=10, pady=8, highlightthickness=2, highlightbackground='#2a2f3a', highlightcolor=GREEN)
+        self.cmd.pack(side='left', fill='both', expand=True)
+        self.cmd.bind('<Return>', lambda e: (self.run_command(), 'break')[1])
+        self.cmd.focus_set()
+        tk.Button(crow, text='▶\nKaro', command=self.run_command, font=('Segoe UI', 13, 'bold'), relief='flat', bd=0, bg=GREEN,
+                  fg='#06210f', activebackground='#2fc483', cursor='hand2', width=6).pack(side='left', fill='y', padx=(8, 0))
         self.hint = tk.Label(cbox, text='jaise: "2 pe kesariya chalao" · "sab pause" · "3 pe amazon pe iphone 16" · "1 band karo"',
                              fg=MUTED, bg=PANEL, font=('Segoe UI', 9), wraplength=330, justify='left')
         self.hint.pack(anchor='w')
@@ -639,7 +643,7 @@ class App:
 
     # ---------- commands: Claude samjhega, Multi Screen karega
     def run_command(self):
-        text = self.cmd.get().strip()
+        text = ' '.join(self.cmd.get('1.0', 'end').split())      # kai line ho toh ek line me jod do
         if not text or self.busy:
             return
         opts = (self.full.get(), START[self.start.get()], self.mon.get(), self.profile_dir())
@@ -677,7 +681,7 @@ class App:
                 done.append(self.do_action(a, opts))
             done = [d for d in done if d]
             self.say('✅ ' + ' · '.join(done) + f'  ({time.time() - t0:.0f}s)' if done else '🤷 Kuch karne layak nahi mila.', GREEN if done else MUTED)
-            self.root.after(0, lambda: self.cmd.delete(0, 'end'))
+            self.root.after(0, lambda: self.cmd.delete('1.0', 'end'))
         except Exception as e:
             self.say(f'⚠️ {e}', RED)
         finally:
