@@ -36,10 +36,11 @@ foreach ($folder in @([Environment]::GetFolderPath('Desktop'), [Environment]::Ge
   $s.Arguments = "`"$dest\multiscreen.py`""
   $s.WorkingDirectory = $dest
   $s.IconLocation = "$dest\multiscreen.ico"
-  $s.Description = 'Kai asli Chrome windows ek grid me'
+  $s.Description = 'Kai asli Chrome windows ek grid me (Ctrl+Alt+M)'
+  if ($folder -eq [Environment]::GetFolderPath('Desktop')) { $s.Hotkey = 'CTRL+ALT+M' }   # keyboard shortcut
   $s.Save()
 }
-Write-Host "[3/3] Desktop aur Start menu me 'Multi Screen' icon lag gaya." -ForegroundColor Green
+Write-Host "[3/3] Desktop aur Start menu me 'Multi Screen' icon lag gaya. Shortcut: Ctrl+Alt+M" -ForegroundColor Green
 Start-Process -FilePath $pyw -ArgumentList "`"$dest\multiscreen.py`"" -WorkingDirectory $dest
 Write-Host ""
 Write-Host "Ho gaya! 'Multi Screen' khul gaya hai. Number dabao, utni Chrome windows grid me lag jayengi." -ForegroundColor Cyan
