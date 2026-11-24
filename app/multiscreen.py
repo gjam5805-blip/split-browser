@@ -27,9 +27,10 @@ IS_WIN = os.name == 'nt'
 IS_MAC = sys.platform == 'darwin'
 HERE = os.path.dirname(os.path.abspath(__file__))
 SETTINGS = os.path.join(HERE, 'settings.json')
-COUNTS = [2, 3, 4, 6, 8, 9, 10, 12]
+COUNTS = [2, 3, 4, 6, 8, 9, 10, 12, 16, 20, 24]
 LAYOUT = {1: (1, 1), 2: (2, 1), 3: (3, 1), 4: (2, 2), 5: (3, 2), 6: (3, 2), 7: (4, 2), 8: (4, 2),
-          9: (3, 3), 10: (5, 2), 11: (4, 3), 12: (4, 3)}
+          9: (3, 3), 10: (5, 2), 11: (4, 3), 12: (4, 3), 16: (4, 4), 20: (5, 4), 24: (6, 4)}
+MAX_FULL = 12             # isse zyada screens sirf patli windows me aati hain
 START = {'Google': 'https://www.google.com/', 'YouTube': 'https://www.youtube.com/'}
 NORMAL_MIN_DIP = 505      # Chrome ki normal window isse patli nahi hoti (measured: 754px @150%)
 
@@ -68,6 +69,117 @@ def yt_top(q):
     return 'https://www.youtube.com/results?search_query=' + urllib.parse.quote(q)
 
 
+CITY_ALIASES = {
+    'delhi': ['delhi', 'new delhi'], 'mumbai': ['mumbai', 'navi mumbai', 'thane', 'bombay'],
+    'bangalore': ['bengaluru', 'bangalore'], 'bengaluru': ['bengaluru', 'bangalore'], 'gurgaon': ['gurugram', 'gurgaon'],
+    'gurugram': ['gurugram', 'gurgaon'], 'pune': ['pune', 'pimpri', 'chinchwad'], 'chandigarh': ['chandigarh', 'mohali', 'panchkula'],
+    'kolkata': ['kolkata', 'calcutta', 'howrah'], 'hyderabad': ['hyderabad', 'secunderabad'], 'noida': ['noida', 'greater noida'],
+    'chennai': ['chennai', 'madras'], 'ahmedabad': ['ahmedabad'], 'jaipur': ['jaipur'], 'lucknow': ['lucknow'],
+}
+
+
+class ProxyPool:
+    """Free India proxies: list lao, har ek ko check karo (chalta hai? asli shehar kaunsa?), shehar se chuno."""
+    SOURCES_GEONODE = 'https://proxylist.geonode.com/api/proxy-list?country=IN&limit=500&page=1&sort_by=lastChecked&sort_type=desc'
+    SOURCES_SCRAPE = ('https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&country=in'
+                      '&protocol=http,socks4,socks5&proxy_format=protocolipport&format=text&timeout=10000')
+
+    def __init__(self):
+        self.ok = []            # [{'proxy': 'http://ip:port', 'city': 'Noida', 'region': ..., 'secs': 0.4}]
+        self.t = 0
+        self.lock = threading.Lock()
+        self.curl = shutil.which('curl') or shutil.which('curl.exe')
+
+    def _get(self, url):
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        return urllib.request.urlopen(req, timeout=20).read().decode('utf-8', 'replace')
+
+    def _candidates(self):
+        out = []
+        try:
+            for x in json.loads(self._get(self.SOURCES_GEONODE)).get('data', []):
+                for pr in x.get('protocols', []):
+                    scheme = {'http': 'http', 'https': 'http', 'socks5': 'socks5', 'socks4': 'socks4'}.get(pr)
+                    if scheme:
+                        out.append(f"{scheme}://{x['ip']}:{x['port']}")
+        except Exception:
+            pass
+        try:
+            out += [l.strip() for l in self._get(self.SOURCES_SCRAPE).splitlines() if '://' in l]
+        except Exception:
+            pass
+        return list(dict.fromkeys(out))
+
+    def _test(self, proxy):
+        if not self.curl:
+            return None
+        p = proxy.replace('socks5://', 'socks5h://')
+        t0 = time.time()
+        try:
+            r = subprocess.run([self.curl, '-s', '-m', '9', '-x', p, 'https://ipinfo.io/json'], capture_output=True, timeout=12,
+                               creationflags=0x08000000 if IS_WIN else 0)
+            j = json.loads(r.stdout.decode('utf-8', 'replace'))
+            if j.get('country') != 'IN':
+                return None
+            return {'proxy': proxy, 'city': j.get('city') or '?', 'region': j.get('region') or '', 'secs': round(time.time() - t0, 1)}
+        except Exception:
+            return None
+
+    def refresh(self):
+        import concurrent.futures as cf
+        cands = self._candidates()
+        with cf.ThreadPoolExecutor(40) as ex:
+            ok = [r for r in ex.map(self._test, cands) if r]
+        ok.sort(key=lambda r: r['secs'])
+        with self.lock:
+            self.ok, self.t = ok, time.time()
+        return ok
+
+    def ensure(self):
+        if not self.ok or time.time() - self.t > 900:      # 15 min purani list taaza karo
+            self.refresh()
+
+    def cities(self):
+        return sorted({r['city'] for r in self.ok})
+
+    def pick(self, city):
+        """city ka chalu proxy, warna None."""
+        self.ensure()
+        want = CITY_ALIASES.get(city.lower().strip(), [city.lower().strip()])
+        for r in self.ok:
+            c = (r['city'] + ' ' + r['region']).lower()
+            if any(w in c for w in want):
+                return r
+        return None
+
+    def any(self):
+        """Koi bhi chalu India proxy (baari baari, taaki sab screens ek hi pe na jayein)."""
+        self.ensure()
+        if not self.ok:
+            return None
+        self.rr = (getattr(self, 'rr', -1) + 1) % len(self.ok)
+        return self.ok[self.rr]
+
+
+PROXY_HOME = os.path.join(HERE, 'proxy-profiles')
+
+
+def proxy_args(proxy, profile):
+    """Proxy wali screen = alag khaali Chrome (tumhara login nahi), us city ke proxy se. Warna tumhara profile."""
+    if not proxy:
+        return ['--profile-directory=' + profile] if profile else []
+    safe = re.sub(r'[^a-z0-9]+', '-', (proxy['city'] + '-' + proxy['proxy']).lower()).strip('-')
+    d = os.path.join(PROXY_HOME, safe)
+    os.makedirs(d, exist_ok=True)
+    try:                                         # purane proxy profiles saaf (sirf apne folder ke, 12 se zyada)
+        old = sorted((os.path.join(PROXY_HOME, x) for x in os.listdir(PROXY_HOME)), key=os.path.getmtime)
+        for x in old[:-30]:
+            shutil.rmtree(x, ignore_errors=True)
+    except Exception:
+        pass
+    return ['--user-data-dir=' + d, '--proxy-server=' + proxy['proxy'], '--no-first-run', '--no-default-browser-check']
+
+
 def find_claude():
     for p in (os.path.join(os.path.expanduser('~'), '.local', 'bin', 'claude.exe' if IS_WIN else 'claude'),
               '/opt/homebrew/bin/claude', '/usr/local/bin/claude'):
@@ -76,26 +188,38 @@ def find_claude():
     return shutil.which('claude')
 
 
-COMMAND_PROMPT = """Tum "Multi Screen" app ke andar ho. Screen pe kai Chrome windows grid me hain, number 1 se shuru (upar-left = 1, phir right, phir neeche wali line).
-Abhi ki screens:
+COMMAND_PROMPT = """Tum "Multi Screen" app ke andar ho. Laptop/projector pe kai asli Chrome windows grid me hain, number 1 se shuru (upar-left = 1, phir right, phir agli line).
+Abhi {count} screens khuli hain:
 {state}
+City proxy jo abhi chalu mile (free proxies, badalte rehte hain): {cities}
 
-User ka command (Hindi/Hinglish/English): {cmd}
+User ka command (Hindi/Hinglish/English, bolke likha ho toh spelling galat ho sakti hai): {cmd}
 
 Isko actions me badlo. SIRF ek JSON array lautao, aur kuch nahi. Har action:
 {{"screen": <number ya "all">, "do": "<action>", ...}}
 Actions:
-- "play": YouTube pe dhoondh ke pehla video chalao. field "q" = search words. (gaana/video/movie/trailer/news chalao, "X lagao" -> play)
-- "ytsearch": YouTube results dikhao (jab user "dhoondo/list dikhao" bole, chalane ko nahi). field "q".
-- "google": Google search. field "q". (price, info, kuch bhi dhoondhna)
-- "open": website kholo. field "url" (pura https:// URL; jaise amazon -> https://www.amazon.in, netflix, hotstar, gmail, whatsapp web).
+- "grid": kitni screens chahiye. field "count" (2,3,4,6,8,9,10,12,16,20,24). Sabse PEHLE rakho agar kaam ke liye zyada/kam screens chahiye.
+- "play": YouTube pe dhoondh ke pehla video chalao. field "q" (achhe search words, jaise "aaj tak live", "kesariya song"). (gaana/video/movie/trailer/news/live chalao, "X lagao" -> play)
+- "ytsearch": YouTube results dikhao (dhoondo/list dikhao, chalana nahi). field "q".
+- "google": Google search. field "q".
+- "open": website kholo. field "url" (pura https:// URL; amazon -> https://www.amazon.in/s?k=..., flipkart, netflix, hotstar, gmail, whatsapp web, news sites).
 - "key": us screen pe control. field "key" = pause | play | fullscreen | mute | next | back10 | fwd10 | scroll_down | scroll_up | refresh | goback
 - "close": wo screen band karo.
-- "grid": kitni screens chahiye. field "count" (2,3,4,6,8,9,10,12). screen field ki zaroorat nahi.
+- "proxy": screen ko kisi city ke proxy se chalao (wahi page). field "city" (jaise "mumbai"). "noproxy" = proxy hatao.
 - "volume": system volume. field "level" = up | down | mute.
-- "say": samajh na aaye ya screen number na ho toh user se poochho. field "text" (Hinglish, chhota).
-Agar screen number nahi bataya aur ek hi kaam hai, toh pehli khali/Google wali screen chuno, warna 1.
-Example: "2 pe kesariya chalao, 3 pe amazon pe iphone 16" -> [{{"screen":2,"do":"play","q":"kesariya song"}},{{"screen":3,"do":"open","url":"https://www.amazon.in/s?k=iphone+16"}}]"""
+- "say": samajh na aaye toh user se chhota sawal (Hinglish). field "text".
+play/ytsearch/google/open me optional field "city" do agar user ne city/proxy/location boli ho (us screen pe us city ka proxy lagega).
+
+Bade kaam ek line me (zaroori):
+- "har screen / sab screens / N screens pe alag-alag X" -> har screen ke liye ALAG action, alag cheez (jaise alag channel, alag city). Kabhi ek hi cheez sab pe repeat mat karo jab "alag" bola ho.
+- Ginti di ho ("4 news channel", "6 city") aur screens kam hon -> pehle "grid" with count (agla size jo fit ho: 2,3,4,6,8,9,10,12,16,20,24).
+- City ki list na di ho par "alag city" bola -> India ke bade shehar lo: delhi, mumbai, pune, chandigarh, bangalore, hyderabad, kolkata, chennai, ahmedabad, jaipur, lucknow, noida (jitni screens utne).
+- Screen number na bataya aur ek kaam hai -> pehli khali/Google wali screen, warna 1.
+Examples:
+"2 pe kesariya chalao, 3 pe amazon pe iphone 16" -> [{{"screen":2,"do":"play","q":"kesariya song"}},{{"screen":3,"do":"open","url":"https://www.amazon.in/s?k=iphone+16"}}]
+"4 screens pe 4 alag hindi news live" -> [{{"do":"grid","count":4}},{{"screen":1,"do":"play","q":"aaj tak live"}},{{"screen":2,"do":"play","q":"abp news live"}},{{"screen":3,"do":"play","q":"ndtv india live"}},{{"screen":4,"do":"play","q":"zee news live"}}]
+"har screen pe alag city se google pe best gym near me" (4 screens) -> [{{"screen":1,"do":"google","q":"best gym near me","city":"delhi"}},{{"screen":2,"do":"google","q":"best gym near me","city":"mumbai"}},{{"screen":3,"do":"google","q":"best gym near me","city":"pune"}},{{"screen":4,"do":"google","q":"best gym near me","city":"chandigarh"}}]
+"3 ko mumbai proxy pe karo" -> [{{"screen":3,"do":"proxy","city":"mumbai"}}]"""
 
 
 KEY_WORDS = {'pause': 'pause', 'ruko': 'pause', 'roko': 'pause', 'stop': 'pause', 'play': 'play', 'resume': 'play',
@@ -240,9 +364,9 @@ class WinBackend:
         self.u.EnumWindows(self.ENUMWIN(cb), 0)
         return out
 
-    def open(self, url, app, profile=None):
+    def open(self, url, app, profile=None, proxy=None):
         before = self.chrome_windows()
-        args = [self.chrome] + (['--profile-directory=' + profile] if profile else [])
+        args = [self.chrome] + proxy_args(proxy, profile)
         args += ['--app=' + url] if app else ['--new-window', url]
         subprocess.Popen(args, creationflags=0x08000000)
         for _ in range(100):                       # ~10 sec tak nayi window dhoondo
@@ -329,9 +453,9 @@ class MacBackend:
         out = self.osa('tell application "Google Chrome" to get id of every window')
         return [int(x) for x in out.replace(' ', '').split(',') if x.strip().isdigit()]
 
-    def open(self, url, app, profile=None):
+    def open(self, url, app, profile=None, proxy=None):
         before = set(self.ids())
-        args = ['open', '-na', 'Google Chrome', '--args'] + (['--profile-directory=' + profile] if profile else [])
+        args = ['open', '-na', 'Google Chrome', '--args'] + proxy_args(proxy, profile)
         args += ['--app=' + url] if app else ['--new-window', url]
         subprocess.run(args)
         for _ in range(100):
@@ -392,6 +516,8 @@ class App:
         self.busy = False
         self.msgs = []
         self.mark_to = False
+        self.meta = {}            # window -> {'url': ..., 'proxy': {...} ya None}
+        self.pool = ProxyPool()
         root.title('Multi Screen')
         root.configure(bg=BG)
         root.resizable(True, True)          # maximize button bhi chalega
@@ -433,7 +559,7 @@ class App:
         grid.pack(fill='both', expand=True)          # badi window me number buttons bhi bade
         for c in range(4):
             grid.columnconfigure(c, weight=1)
-        for r in range(2):
+        for r in range(3):
             grid.rowconfigure(r, weight=1)
         self.count_btns = {}
         for i, n in enumerate(COUNTS):
@@ -470,6 +596,14 @@ class App:
         for k in START:
             tk.Radiobutton(row, text=k, variable=self.start, value=k, fg=TEXT, bg=PANEL, selectcolor=BG, activebackground=PANEL,
                            activeforeground=TEXT, font=('Segoe UI', 10), command=self.remember).pack(side='left', padx=4)
+        prow2 = tk.Frame(box, bg=PANEL)
+        prow2.pack(anchor='w', fill='x', pady=(8, 0))
+        tk.Label(prow2, text='City proxy:', fg=MUTED, bg=PANEL, font=('Segoe UI', 10)).pack(side='left')
+        tk.Button(prow2, text='🌐 Chalu proxy dhoondo', command=self.find_proxies, font=('Segoe UI', 9), relief='flat', bd=0,
+                  bg=BG, fg=TEXT, activebackground=BLUE, cursor='hand2').pack(side='left', padx=6, ipady=2, ipadx=4)
+        tk.Label(box, text='Command me bolo: "3 ko mumbai proxy pe karo" ya "har screen pe alag city se google pe X". '
+                           'Proxy wali screen khaali Chrome hoti hai: usme login/password mat daalna.',
+                 fg=MUTED, bg=PANEL, font=('Segoe UI', 8), wraplength=330, justify='left').pack(anchor='w', pady=(2, 0))
         mons = self.be.monitors()
         if len(mons) > 1:
             row2 = tk.Frame(box, bg=PANEL)
@@ -564,6 +698,9 @@ class App:
         self.busy = True
         try:
             full, url, mon_idx, profile = opts
+            forced_thin = full and n > MAX_FULL
+            if forced_thin:                          # 16/20/24 sirf patli windows me fit hoti hain
+                full = False
             mon = self.monitor(mon_idx)
             self.wins = [(h, a) for h, a in self.wins if self.be.alive(h)]
             want_app = not full
@@ -591,7 +728,9 @@ class App:
             for i, (h, a) in enumerate(self.wins):
                 self.be.place(h, *cells[i])
             msg = f'✅ {n} Chrome windows {cols}×{rows} grid me.'
-            if full and cols < (LAYOUT.get(n) or (cols,))[0]:
+            if forced_thin:
+                msg += f' {n} screens sirf patli windows me aati hain, isliye patli lagayi.'
+            elif full and cols < (LAYOUT.get(n) or (cols,))[0]:
                 msg += ' Poori Chrome window isse patli nahi hoti; zyada column chahiye toh "Patli windows" chuno.'
             self.say(msg, GREEN)
             self.mark_to = n if n in self.count_btns else None
@@ -641,6 +780,16 @@ class App:
             badges.append(t)
         self.root.after(int(secs * 1000), lambda: [b.destroy() for b in badges])
 
+    def find_proxies(self):
+        def work():
+            self.say('🌐 Free India proxies check kar raha hoon (~15 sec)…', TEXT)
+            ok = self.pool.refresh()
+            if not ok:
+                return self.say('😕 Abhi ek bhi chalu free India proxy nahi mila. Thodi der baad dobara try karo.', RED)
+            cities = self.pool.cities()
+            self.say(f'✅ {len(ok)} chalu proxy mile. Shehar: ' + ', '.join(cities), GREEN)
+        threading.Thread(target=work, daemon=True).start()
+
     # ---------- commands: Claude samjhega, Multi Screen karega
     def run_command(self):
         text = ' '.join(self.cmd.get('1.0', 'end').split())      # kai line ho toh ek line me jod do
@@ -651,11 +800,19 @@ class App:
 
     def ask_claude(self, text):
         self.wins = [(h, a) for h, a in self.wins if self.be.alive(h)]
-        state = '\n'.join(f'{i + 1}: {self.be.title(h)[:90] or "(khali)"}' for i, (h, a) in enumerate(self.wins)) or '(abhi koi screen khuli nahi)'
-        prompt = COMMAND_PROMPT.format(state=state, cmd=text)
+        lines = []
+        for i, (h, a) in enumerate(self.wins):
+            px = (self.meta.get(h) or {}).get('proxy')
+            lines.append(f'{i + 1}: {self.be.title(h)[:90] or "(khali)"}' + (f'  [proxy: {px["city"]}]' if px else ''))
+        state = '\n'.join(lines) or '(abhi koi screen khuli nahi)'
+        cities = ', '.join(self.pool.cities()) if self.pool.ok else '(abhi check nahi kiya)'
+        prompt = COMMAND_PROMPT.format(count=len(self.wins), state=state, cities=cities, cmd=text)
         if not self.claude:
             raise RuntimeError('Claude is laptop pe nahi mila')
-        r = subprocess.run([self.claude, '-p', '--model', 'haiku', '--tools', '', '--strict-mcp-config', '--disable-slash-commands'],
+        # lamba / "har screen alag" wala kaam -> zyada samajhdar model, chhota -> tez model
+        big = len(text) > 60 or re.search(r'\b(har|sab|sabhi|alag|each|every|different|city|cities)\b', text.lower())
+        r = subprocess.run([self.claude, '-p', '--model', 'sonnet' if big else 'haiku', '--tools', '', '--strict-mcp-config',
+                            '--disable-slash-commands'],
                            input=prompt.encode('utf-8'), capture_output=True, timeout=90,
                            creationflags=0x08000000 if IS_WIN else 0)
         out = r.stdout.decode('utf-8', 'replace')
@@ -712,10 +869,28 @@ class App:
             self._set_count(n, opts, inner=True)
             self.wins = [(h, ap) for h, ap in self.wins if self.be.alive(h)]
         names = []
+        # city proxy: action me "city" ho ya "proxy" action ho
+        city = str(a.get('city') or '').strip().lower()
+        want_proxy, note = 'keep', ''
+        if do == 'noproxy' or city in ('none', 'off', 'normal', 'no'):
+            want_proxy = None
+        elif city:
+            self.say(f'🌐 {city.title()} ka chalu proxy dhoondh raha hoon (pehli baar ~15 sec)…', TEXT)
+            want_proxy = self.pool.pick(city)
+            if not want_proxy:
+                alt = self.pool.any()
+                if not alt:
+                    return f'⚠️ Abhi koi chalu India proxy nahi mila ({city.title()} ke liye)'
+                want_proxy, note = alt, f' ({city.title()} ka free proxy nahi mila, {alt["city"]} wala lagaya)'
         for i in targets:
             if i >= len(self.wins):
                 continue
             h, app = self.wins[i]
+            if do in ('proxy', 'noproxy'):
+                m = self.meta.get(h) or {}
+                self.replace(i, m.get('url') or url, profile, mon_idx, None if do == 'noproxy' else want_proxy)
+                names.append(f'{i + 1}: ' + ('proxy hataya' if do == 'noproxy' or not want_proxy else f'🌐 {want_proxy["city"]}') + note)
+                continue
             if do == 'key':
                 k = self.KEYS.get(str(a.get('key', '')).lower())
                 if k:
@@ -737,8 +912,9 @@ class App:
                     target = str(a.get('url', ''))
                     if not re.match(r'https?://', target):
                         target = 'https://' + target
-                self.replace(i, target, profile, mon_idx)
-                names.append(f'{i + 1}: {"▶ " + q if do == "play" else q or target}')
+                px = (self.meta.get(h) or {}).get('proxy') if want_proxy == 'keep' else want_proxy
+                self.replace(i, target, profile, mon_idx, px)
+                names.append(f'{i + 1}: {"▶ " + q if do == "play" else q or target}' + (f' 🌐{px["city"]}' if px else '') + note)
         self.wins = [(h, ap) for h, ap in self.wins if h]
         if do == 'close' and self.wins:                            # bachi hui screens phir se grid me
             cells, _, _ = self.layout(len(self.wins), not self.wins[0][1], self.monitor(mon_idx))
@@ -747,15 +923,18 @@ class App:
             self.want_numbers = True
         return ' · '.join(names)
 
-    def replace(self, i, target, profile, mon_idx=0):
-        """Screen i me naya page: wahi jagah pe nayi window, purani band (patli windows me address bar nahi hota)."""
+    def replace(self, i, target, profile, mon_idx=0, proxy=None):
+        """Screen i me naya page: wahi jagah pe nayi window, purani band (patli windows me address bar nahi hota).
+        proxy ho toh nayi window alag khaali Chrome me, us city ke proxy se."""
         h_old, app = self.wins[i]
         cells, _, _ = self.layout(len(self.wins), not app, self.monitor(mon_idx))
-        h_new = self.be.open(target, app, profile)
+        h_new = self.be.open(target, app, profile, proxy)
         if not h_new:
             raise RuntimeError(f'Screen {i + 1} pe page nahi khula')
         self.be.place(h_new, *cells[i])
         self.be.close(h_old)
+        self.meta.pop(h_old, None)
+        self.meta[h_new] = {'url': target, 'proxy': proxy}
         self.wins[i] = (h_new, app)
         time.sleep(0.4)
         self.be.place(h_new, *cells[i])
