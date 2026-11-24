@@ -26,7 +26,7 @@ $pyw = Join-Path (Split-Path $py) 'pythonw.exe'
 Write-Host "[1/3] Python: $py" -ForegroundColor Green
 
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
-foreach ($f in 'multiscreen.py', 'icon.png', 'multiscreen.ico') { Copy-Item (Join-Path $src $f) (Join-Path $dest $f) -Force }
+foreach ($f in 'multiscreen.py', 'hotkey.pyw', 'icon.png', 'multiscreen.ico') { Copy-Item (Join-Path $src $f) (Join-Path $dest $f) -Force }
 Write-Host "[2/3] App copy ho gaya: $dest" -ForegroundColor Green
 
 $ws = New-Object -ComObject WScript.Shell
@@ -37,9 +37,16 @@ foreach ($folder in @([Environment]::GetFolderPath('Desktop'), [Environment]::Ge
   $s.WorkingDirectory = $dest
   $s.IconLocation = "$dest\multiscreen.ico"
   $s.Description = 'Kai asli Chrome windows ek grid me (Ctrl+Alt+M)'
-  if ($folder -eq [Environment]::GetFolderPath('Desktop')) { $s.Hotkey = 'CTRL+ALT+M' }   # keyboard shortcut
   $s.Save()
 }
+# Ctrl+Alt+M: chhota listener, har login pe chupchaap chalta hai
+$hk = $ws.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Startup')) 'Multi Screen Hotkey.lnk'))
+$hk.TargetPath = $pyw
+$hk.Arguments = "`"$dest\hotkey.pyw`""
+$hk.WorkingDirectory = $dest
+$hk.Description = 'Ctrl+Alt+M = Multi Screen'
+$hk.Save()
+Start-Process -FilePath $pyw -ArgumentList "`"$dest\hotkey.pyw`"" -WorkingDirectory $dest
 Write-Host "[3/3] Desktop aur Start menu me 'Multi Screen' icon lag gaya. Shortcut: Ctrl+Alt+M" -ForegroundColor Green
 Start-Process -FilePath $pyw -ArgumentList "`"$dest\multiscreen.py`"" -WorkingDirectory $dest
 Write-Host ""
