@@ -812,8 +812,27 @@ def main():
             time.sleep(float(sys.argv[5]) if len(sys.argv) > 5 else 3)
             a.close_all()
         return
+    import socket
+    lock = socket.socket()
+    try:
+        lock.bind(('127.0.0.1', 47391))          # ek hi copy chale
+    except OSError:
+        if IS_WIN:                                # pehle se khula hai: usi ko aage le aao
+            import ctypes
+            u = ctypes.WinDLL('user32')
+            h = u.FindWindowW('TkTopLevel', 'Multi Screen')
+            if h:
+                u.ShowWindow(h, 9)
+                u.keybd_event(0x12, 0, 0, 0)
+                u.keybd_event(0x12, 0, 2, 0)
+                u.SetForegroundWindow(h)
+        return
     root = tk.Tk()
     App(root)
+    root.lift()                                   # khulte hi sabse aage dikhe
+    root.attributes('-topmost', True)
+    root.after(800, lambda: root.attributes('-topmost', False))
+    root.focus_force()
     root.mainloop()
 
 
