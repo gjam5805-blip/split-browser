@@ -394,13 +394,13 @@ class App:
         self.mark_to = False
         root.title('Multi Screen')
         root.configure(bg=BG)
-        root.resizable(False, False)
+        root.resizable(True, True)          # maximize button bhi chalega
         try:
             root.iconphoto(True, tk.PhotoImage(file=os.path.join(HERE, 'icon.png')))
         except Exception:
             pass
         f = tk.Frame(root, bg=BG, padx=16, pady=14)
-        f.pack(fill='both')
+        f.pack(fill='both', expand=True)
         tk.Label(f, text='Multi Screen', font=('Segoe UI', 17, 'bold'), fg=TEXT, bg=BG).pack(anchor='w')
 
         # ---- command box: jo bolo, screens pe ho jaye
@@ -414,8 +414,9 @@ class App:
         self.cmd.bind('<Return>', lambda e: self.run_command())
         tk.Button(crow, text='▶ Karo', command=self.run_command, font=('Segoe UI', 11, 'bold'), relief='flat', bd=0, bg=GREEN,
                   fg='#06210f', activebackground='#2fc483', cursor='hand2').pack(side='left', padx=(6, 0), ipady=4, ipadx=6)
-        tk.Label(cbox, text='jaise: "2 pe kesariya chalao" · "sab pause" · "3 pe amazon pe iphone 16" · "1 band karo"',
-                 fg=MUTED, bg=PANEL, font=('Segoe UI', 9), wraplength=330, justify='left').pack(anchor='w')
+        self.hint = tk.Label(cbox, text='jaise: "2 pe kesariya chalao" · "sab pause" · "3 pe amazon pe iphone 16" · "1 band karo"',
+                             fg=MUTED, bg=PANEL, font=('Segoe UI', 9), wraplength=330, justify='left')
+        self.hint.pack(anchor='w')
         self.claude = find_claude()
 
         trow = tk.Frame(f, bg=BG)
@@ -425,7 +426,11 @@ class App:
                   fg=TEXT, activebackground=BLUE, cursor='hand2').pack(side='right', ipady=2, ipadx=4)
 
         grid = tk.Frame(f, bg=BG)
-        grid.pack(fill='x')
+        grid.pack(fill='both', expand=True)          # badi window me number buttons bhi bade
+        for c in range(4):
+            grid.columnconfigure(c, weight=1)
+        for r in range(2):
+            grid.rowconfigure(r, weight=1)
         self.count_btns = {}
         for i, n in enumerate(COUNTS):
             b = tk.Button(grid, text=str(n), width=4, font=('Segoe UI', 14, 'bold'), relief='flat', bd=0, cursor='hand2',
@@ -482,6 +487,11 @@ class App:
         self.status.pack(anchor='w', pady=(10, 0))
         if not self.be.chrome:
             self.say('⚠️ Google Chrome nahi mila. Pehle Chrome install karo.', RED)
+        # window choti/badi ho toh text bhi uske hisaab se line tode
+        f.bind('<Configure>', lambda e: (self.hint.config(wraplength=max(200, e.width - 60)),
+                                         self.status.config(wraplength=max(200, e.width - 40))))
+        root.update_idletasks()
+        root.minsize(root.winfo_reqwidth(), root.winfo_reqheight())   # isse chhota nahi hoga
         self._poll()
 
     # ---------- helpers
